@@ -41,6 +41,15 @@ const REAL_PATH = [
   /\/(Users|home)\/(?!(me|you|user|username|name|runner|<[^>]*>|\$USER)\/)[A-Za-z0-9._-]+\//,
 ];
 
+// Zero-width, line/paragraph-separator and bidi-control characters: they can
+// make reviewed source differ from what runs ("Trojan Source", CVE-2021-42574).
+// Built from code points so this file stays ASCII.
+const INVISIBLE = new RegExp(
+  `[${[[0x200b, 0x200f], [0x2028, 0x202e], [0x2066, 0x2069], [0xfeff, 0xfeff]]
+    .map(([a, b]) => `${String.fromCharCode(a)}-${String.fromCharCode(b)}`)
+    .join("")}]`
+);
+
 // Files that legitimately describe these patterns.
 const CONTENT_ALLOWLIST = new Set(["scripts/check-repo.js", ".gitignore"]);
 
@@ -77,6 +86,9 @@ function main() {
 
     const text = fs.readFileSync(file, "utf-8");
     text.split(/\r?\n/).forEach((line, i) => {
+      if (INVISIBLE.test(line)) {
+        problems.push(`${file}:${i + 1}: invisible or bidi-control character (Trojan Source risk)`);
+      }
       for (const u of line.match(UUID) || []) {
         if (!isPlaceholderUuid(u)) {
           problems.push(`${file}:${i + 1}: UUID that may be a real API key`);
