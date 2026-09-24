@@ -6,6 +6,7 @@ const {
   validateApiUrl,
   resolveApiUrl,
   resolveApiKey,
+  findApiKey,
   DEFAULT_API_URL,
 } = require("../src/config");
 
@@ -37,8 +38,25 @@ test("resolveApiUrl: flag, then env, then default", () => {
   assert.equal(resolveApiUrl(undefined, {}), DEFAULT_API_URL);
 });
 
-test("resolveApiKey: flag, then env, else a helpful error", () => {
-  assert.equal(resolveApiKey("flag-key", { DJREQUEST_API_KEY: "env-key" }), "flag-key");
-  assert.equal(resolveApiKey(undefined, { DJREQUEST_API_KEY: " env-key " }), "env-key");
-  assert.throws(() => resolveApiKey(undefined, {}), /DJREQUEST_API_KEY/);
+test("resolveApiKey: flag, then env, then keychain, else a helpful error", () => {
+  const keychain = {
+    supported: true,
+    get: (account) => (account === "https://www.djrequest.me" ? "stored-key" : null),
+  };
+  const apiUrl = "https://www.djrequest.me";
+  const withEnv = { env: { DJREQUEST_API_KEY: " env-key " }, keychain, apiUrl };
+
+  assert.equal(resolveApiKey("flag-key", withEnv), "flag-key");
+  assert.equal(resolveApiKey(undefined, withEnv), "env-key");
+  assert.equal(resolveApiKey(undefined, { env: {}, keychain, apiUrl }), "stored-key");
+  assert.deepEqual(findApiKey(undefined, { env: {}, keychain, apiUrl }), {
+    key: "stored-key",
+    source: "keychain",
+  });
+  // Keychain entries are per API URL.
+  assert.throws(
+    () => resolveApiKey(undefined, { env: {}, keychain, apiUrl: "http://localhost:3000" }),
+    /auth set-key/
+  );
+  assert.throws(() => resolveApiKey(undefined, { env: {} }), /DJREQUEST_API_KEY/);
 });

@@ -55,20 +55,35 @@ function resolveApiUrl(flagValue, env = process.env) {
 }
 
 /**
- * --api-key flag → DJREQUEST_API_KEY. The key is never read from a positional
- * argument and never written anywhere by this tool. Prefer the environment
- * variable: flags end up in shell history.
+ * Find the API key: --api-key flag → DJREQUEST_API_KEY → OS keychain entry for
+ * this API URL. The key is never read from a positional argument, and this
+ * tool only ever writes it to the OS keychain (via `auth set-key`).
+ *
+ * @returns {{ key: string, source: "flag" | "env" | "keychain" } | null}
  */
-function resolveApiKey(flagValue, env = process.env) {
-  const key = (flagValue || env[ENV_API_KEY] || "").trim();
-  if (!key) {
+function findApiKey(flagValue, { env = process.env, keychain, apiUrl } = {}) {
+  const flag = (flagValue || "").trim();
+  if (flag) return { key: flag, source: "flag" };
+  const fromEnv = (env[ENV_API_KEY] || "").trim();
+  if (fromEnv) return { key: fromEnv, source: "env" };
+  if (keychain && keychain.supported && apiUrl) {
+    const stored = keychain.get(apiUrl);
+    if (stored) return { key: stored, source: "keychain" };
+  }
+  return null;
+}
+
+/** Like findApiKey, but a missing key is an error that says how to fix it. */
+function resolveApiKey(flagValue, options = {}) {
+  const found = findApiKey(flagValue, options);
+  if (!found) {
     throw new LinkError(
-      `Missing API key. Set ${ENV_API_KEY} (recommended) or pass --api-key <key>. ` +
-        "Find your key on the Developer page of your DJRequest.me admin.",
+      "Missing API key. Run `djrequest-link auth set-key` to store it in your OS keychain, " +
+        `or set ${ENV_API_KEY}. Find your key on the Developer page of your DJRequest.me admin.`,
       "BAD_ARGS"
     );
   }
-  return key;
+  return found.key;
 }
 
 module.exports = {
@@ -77,5 +92,6 @@ module.exports = {
   ENV_API_KEY,
   validateApiUrl,
   resolveApiUrl,
+  findApiKey,
   resolveApiKey,
 };

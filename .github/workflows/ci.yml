@@ -41,3 +41,7 @@ jobs:
         run: npm run lint
       - name: Tests
         run: npm test
+        env:
+          # Real OS keychain round-trip (macOS Keychain / Windows Credential
+          # Manager). Linux runners have no unlocked Secret Service.
+          DJREQUEST_KEYCHAIN_SELFTEST: ${{ matrix.os != 'ubuntu-latest' && '1' || '' }}
