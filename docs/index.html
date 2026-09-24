@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>djrequest-link</title>
+  <meta name="description" content="Local companion for DJRequest.me: show what you're playing on your venue's live display, and sync Engine DJ playlists to your requestable catalogue.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%236d3fd8'/%3E%3C/svg%3E">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="site">
+  <div class="bar">
+    <a class="brand" href="./"><span class="dot"></span>djrequest-link</a>
+    <nav class="main" aria-label="Documentation">
+      <a href="./" aria-current="page">Get started</a>
+      <a href="now-playing.html">Now Playing</a>
+      <a href="catalogue.html">Catalogue sync</a>
+      <a href="reference.html">Command reference</a>
+      <a href="security.html">Security</a>
+      <a href="https://github.com/PachiSystems/djrequest-link">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="content">
+  <h1>djrequest-link</h1>
+  <p class="lead">A small command-line tool that runs on your laptop and connects your DJ setup to
+    <a href="https://www.djrequest.me">DJRequest.me</a>.</p>
+
+  <div class="cards">
+    <div class="card">
+      <h3>Now Playing</h3>
+      <p>Follows your Denon DJ / Engine DJ gear over StagelinQ and shows the track you're playing on your
+        venue's live display — automatically, as you mix.</p>
+      <p><a href="now-playing.html">Set up Now Playing →</a></p>
+    </div>
+    <div class="card">
+      <h3>Catalogue sync</h3>
+      <p>Reads your Engine DJ library (read-only), and uploads the playlists you choose as the tracks guests can
+        request.</p>
+      <p><a href="catalogue.html">Sync your catalogue →</a></p>
+    </div>
+  </div>
+
+  <h2 id="requirements">What you need</h2>
+  <ul>
+    <li><strong>Node.js 24 or newer</strong> on the laptop you DJ from — download it from
+      <a href="https://nodejs.org/">nodejs.org</a> (the “LTS” version is fine if it's 24+). Standalone installers
+      that don't need Node are planned.</li>
+    <li>A DJRequest.me plan that includes the <strong>Developer API</strong>. Now Playing also needs the
+      <strong>Now Playing</strong> feature on your plan.</li>
+    <li>For Now Playing: Engine DJ hardware on the same network as your laptop.</li>
+  </ul>
+
+  <h2 id="install">Install</h2>
+  <p>Open a terminal (Terminal on macOS, PowerShell on Windows) and run:</p>
+  <pre><code><span class="p">$ </span>npm install -g github:PachiSystems/djrequest-link</code></pre>
+  <p>Check it worked:</p>
+  <pre><code><span class="p">$ </span>djrequest-link --version</code></pre>
+  <p>To update later, run the install command again. To remove it:
+    <code>npm uninstall -g djrequest-link</code>.</p>
+  <div class="note">
+    <p>djrequest-link has <strong>no dependencies</strong> — the install downloads only this tool's own code,
+      which you can read on <a href="https://github.com/PachiSystems/djrequest-link">GitHub</a>.</p>
+  </div>
+
+  <h2 id="setup">Set up</h2>
+  <ol class="steps">
+    <li>
+      <strong>Save your API key</strong>
+      <p>Find your key on the <em>Developer</em> page of your DJRequest.me admin, then run:</p>
+      <pre><code><span class="p">$ </span>djrequest-link auth set-key</code></pre>
+      <p>Paste the key when asked (it isn't shown as you type). The tool checks it works, then stores it in your
+        computer's keychain — macOS Keychain, Windows Credential Manager, or the Linux Secret Service. It's never
+        written to a file.</p>
+    </li>
+    <li>
+      <strong>Find your venue id</strong>
+      <pre><code><span class="p">$ </span>djrequest-link venues list</code></pre>
+      <p>Copy the id of the venue you're playing at. You'll pass it as <code>--venue &lt;id&gt;</code>.</p>
+    </li>
+    <li>
+      <strong>Pick what to do next</strong>
+      <p><a href="now-playing.html">Show what you're playing</a> on the live display, or
+        <a href="catalogue.html">sync your Engine DJ playlists</a> as your catalogue.</p>
+    </li>
+  </ol>
+
+  <h2 id="commands">Commands at a glance</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>auth set-key</code></td><td>Store your API key in the OS keychain.</td></tr>
+        <tr><td><code>auth status</code></td><td>Show which key is in use and where it came from.</td></tr>
+        <tr><td><code>venues list</code></td><td>List your venues and their ids.</td></tr>
+        <tr><td><code>now-playing watch</code></td><td>Follow your gear and keep Now Playing up to date.</td></tr>
+        <tr><td><code>now-playing devices</code></td><td>List StagelinQ devices on the network.</td></tr>
+        <tr><td><code>now-playing set</code> / <code>clear</code></td><td>Set or clear Now Playing by hand.</td></tr>
+        <tr><td><code>catalogue list-playlists</code></td><td>List the playlists in your Engine DJ library.</td></tr>
+        <tr><td><code>catalogue sync</code></td><td>Upload chosen playlists as your requestable catalogue.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>Every command has built-in help, e.g. <code>djrequest-link now-playing --help</code>. The
+    <a href="reference.html">command reference</a> lists every option.</p>
+
+  <h2 id="dev">Running from source</h2>
+  <p>If you'd rather not install globally, clone the repository and run it directly — there's nothing to build:</p>
+  <pre><code><span class="p">$ </span>git clone https://github.com/PachiSystems/djrequest-link.git
+<span class="p">$ </span>cd djrequest-link
+<span class="p">$ </span>node bin/djrequest-link.js --help</code></pre>
+</main>
+
+<footer class="site">
+  <div class="bar">
+    <span>djrequest-link · <a href="https://github.com/PachiSystems/djrequest-link/blob/main/LICENSE.md">PolyForm Noncommercial 1.0.0</a></span>
+    <span><a href="https://github.com/PachiSystems/djrequest-link/issues">Report a problem</a></span>
+  </div>
+</footer>
+<script src="docs.js"></script>
+</body>
+</html>

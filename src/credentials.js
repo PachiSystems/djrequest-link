@@ -18,7 +18,9 @@ const { LinkError } = require("./errors");
  */
 
 const SERVICE = "djrequest-link";
-const TIMEOUT_MS = 20_000;
+// Generous: the Windows helper compiles a small C# type on first use, which
+// can take ~20 s on a cold, slow machine.
+const TIMEOUT_MS = 60_000;
 
 // Keys are UUIDs today. Anything outside this conservative set is refused
 // before it reaches a helper's stdin (macOS `security -i` parses a command line).

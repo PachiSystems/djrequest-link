@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Security · djrequest-link</title>
+  <meta name="description" content="How djrequest-link handles your API key, your Engine DJ library, and your network.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%236d3fd8'/%3E%3C/svg%3E">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="site">
+  <div class="bar">
+    <a class="brand" href="./"><span class="dot"></span>djrequest-link</a>
+    <nav class="main" aria-label="Documentation">
+      <a href="./">Get started</a>
+      <a href="now-playing.html">Now Playing</a>
+      <a href="catalogue.html">Catalogue sync</a>
+      <a href="reference.html">Command reference</a>
+      <a href="security.html" aria-current="page">Security</a>
+      <a href="https://github.com/PachiSystems/djrequest-link">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="content">
+  <h1>Security &amp; privacy</h1>
+  <p class="lead">djrequest-link holds an API key that can change your DJRequest.me account, and it reads your music
+    library and listens on your network. Here's exactly how it handles each.</p>
+
+  <h2 id="key">Your API key</h2>
+  <ul>
+    <li><strong>Stored only in your OS keychain</strong> (<code>auth set-key</code>): macOS Keychain, Windows Credential
+      Manager, or the Linux Secret Service. The tool never writes it to a file or a log.</li>
+    <li><strong>Never on the command line of a helper program.</strong> When talking to the keychain, the key is passed
+      privately (on standard input), so other users on the computer can't see it in the process list.</li>
+    <li><strong>Only sent over HTTPS</strong>, only to the API address you configured. The tool refuses plain
+      <code>http://</code> except to <code>localhost</code>, and never follows a redirect with your key attached.</li>
+    <li><strong>Not sent to file storage.</strong> Catalogue uploads go to a short-lived signed URL; the key isn't
+      included.</li>
+  </ul>
+  <p>If you think your key has leaked, regenerate it on the <em>Developer</em> page of your DJRequest.me admin —
+    the old key stops working immediately — then run <code>djrequest-link auth set-key</code> again.</p>
+
+  <h2 id="library">Your Engine DJ library</h2>
+  <ul>
+    <li>Opened <strong>read-only</strong>, in a mode that doesn't lock it or create any files next to it.</li>
+    <li><strong>Never uploaded.</strong> Only a list of the tracks in the playlists you choose is sent — title, artist,
+      album, genre, BPM, key, length, year, label and similar. File paths from your computer are not included.</li>
+    <li>The sync state file (<code>djrequest-link.manifest.json</code>) records the last upload's fingerprint and
+      settings. It never contains your API key.</li>
+  </ul>
+
+  <h2 id="network">Your network</h2>
+  <p><code>now-playing watch</code> and <code>now-playing devices</code> use StagelinQ, the protocol Denon / Engine DJ
+    gear uses on your local network:</p>
+  <ul>
+    <li>It listens for, and sends, device announcements on <strong>UDP port 51337</strong>.</li>
+    <li>It connects <em>out</em> to your players over TCP. It never opens a port that other devices can connect to.</li>
+    <li>It ignores announcements from outside your laptop's own local network(s).</li>
+    <li>Everything received from the network is treated as untrusted: sizes are checked before anything is read,
+      only the values the tool asked for are used, and titles/artists are cleaned and length-limited before being
+      sent to DJRequest.me.</li>
+    <li>It reads only play state, fader position, and track title/artist from your gear.</li>
+  </ul>
+
+  <h2 id="telemetry">No tracking</h2>
+  <p>There is no telemetry, analytics or crash reporting. The only place djrequest-link sends anything is the
+    DJRequest.me API address you use. Error messages are printed on your screen and go nowhere else.</p>
+
+  <h2 id="supply-chain">No dependencies</h2>
+  <p>The tool uses only Node.js itself — no third-party packages — so installing it doesn't pull in anyone else's
+    code. The source is public on <a href="https://github.com/PachiSystems/djrequest-link">GitHub</a>, and every change
+    is checked in CI, including a guard that blocks committed databases, library exports, keys and hidden
+    characters.</p>
+
+  <h2 id="report">Reporting a vulnerability</h2>
+  <p>Please <strong>don't open a public issue</strong>. Report it privately using <em>Report a vulnerability</em> on the
+    repository's <a href="https://github.com/PachiSystems/djrequest-link/security">Security tab</a>.</p>
+</main>
+
+<footer class="site">
+  <div class="bar">
+    <span>djrequest-link · <a href="https://github.com/PachiSystems/djrequest-link/blob/main/LICENSE.md">PolyForm Noncommercial 1.0.0</a></span>
+    <span><a href="https://github.com/PachiSystems/djrequest-link/issues">Report a problem</a></span>
+  </div>
+</footer>
+<script src="docs.js"></script>
+</body>
+</html>

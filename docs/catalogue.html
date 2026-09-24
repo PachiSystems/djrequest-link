@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Catalogue sync · djrequest-link</title>
+  <meta name="description" content="Upload selected Engine DJ playlists as your DJRequest.me requestable catalogue.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%236d3fd8'/%3E%3C/svg%3E">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="site">
+  <div class="bar">
+    <a class="brand" href="./"><span class="dot"></span>djrequest-link</a>
+    <nav class="main" aria-label="Documentation">
+      <a href="./">Get started</a>
+      <a href="now-playing.html">Now Playing</a>
+      <a href="catalogue.html" aria-current="page">Catalogue sync</a>
+      <a href="reference.html">Command reference</a>
+      <a href="security.html">Security</a>
+      <a href="https://github.com/PachiSystems/djrequest-link">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="content">
+  <h1>Catalogue sync</h1>
+  <p class="lead">Choose playlists from your Engine DJ library and upload just those tracks as the catalogue
+    guests can request from.</p>
+
+  <div class="note">
+    <p>Your Engine DJ database is opened <strong>read-only</strong>: it's never modified, and it's never
+      uploaded. Only a list of the selected tracks (title, artist, album, genre, BPM, key and similar details) is
+      sent. File paths on your computer are not included.</p>
+  </div>
+
+  <h2 id="find-db">Find your Engine DJ database</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>System</th><th>Location</th></tr></thead>
+      <tbody>
+        <tr><td>macOS</td><td><code>~/Music/Engine Library/Database2/m.db</code></td></tr>
+        <tr><td>Windows</td><td><code>%USERPROFILE%\Music\Engine Library\Database2\m.db</code></td></tr>
+        <tr><td>USB drive</td><td><code>Engine Library/Database2/m.db</code> on the drive</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="warn">
+    <p><strong>Close Engine DJ first.</strong> The tool reads a snapshot of the database without locking it, so
+      changes Engine DJ hasn't saved yet won't be included. It warns you if it spots unsaved changes.</p>
+  </div>
+
+  <h2 id="sync">Sync</h2>
+  <ol class="steps">
+    <li>
+      <strong>List your playlists</strong>
+      <pre><code><span class="p">$ </span>djrequest-link catalogue list-playlists --db "/path/to/m.db"</code></pre>
+    </li>
+    <li>
+      <strong>Preview the sync</strong>
+      <pre><code><span class="p">$ </span>djrequest-link catalogue sync --db "/path/to/m.db" --playlist "House/Deep" --playlist "Top 100" --dry-run</code></pre>
+      <p>Shows how many tracks would be uploaded. Needs no API key and sends nothing.</p>
+    </li>
+    <li>
+      <strong>Sync for real</strong>
+      <pre><code><span class="p">$ </span>djrequest-link catalogue sync --db "/path/to/m.db" --playlist "House/Deep" --playlist "Top 100"</code></pre>
+    </li>
+  </ol>
+
+  <div class="warn">
+    <p><strong>A sync replaces your whole catalogue</strong> with exactly the tracks in the playlists you name.
+      Pass every playlist you want requestable in one command.</p>
+  </div>
+
+  <h3>Choosing playlists</h3>
+  <ul>
+    <li><code>--playlist</code> accepts a full path (<code>House/Deep</code>), a title if it's unique, or the
+      numeric id from <code>list-playlists</code>.</li>
+    <li>Repeat it for several playlists. A track in more than one playlist is only counted once.</li>
+  </ul>
+
+  <h3>Re-syncing</h3>
+  <p>Run the same command again after changing your playlists. If nothing changed, the upload is skipped. The tool
+    remembers the last sync in <code>djrequest-link.manifest.json</code> in the folder you run it from (it never
+    contains your API key). Add <code>--force</code> to upload anyway.</p>
+
+  <h2 id="other">Other commands</h2>
+  <ul>
+    <li><code>catalogue export --db … --playlist … --out tracks.json</code> writes the track list to a file
+      instead of uploading it — useful to see exactly what would be sent.</li>
+    <li><code>catalogue inspect --db …</code> prints read-only diagnostics about the database layout. Include its
+      output if you report a problem reading your library.</li>
+  </ul>
+
+  <h2 id="troubleshooting">Troubleshooting</h2>
+  <h3>“Unsupported schema”</h3>
+  <p>The file isn't an Engine DJ <code>Database2/m.db</code>, or it's from a version the tool doesn't recognise
+    yet. Please <a href="https://github.com/PachiSystems/djrequest-link/issues">open an issue</a> with the output
+    of <code>catalogue inspect</code> (it contains table and column names and a few sample values — remove
+    anything you'd rather not share).</p>
+  <h3>“Playlist … is ambiguous”</h3>
+  <p>Two playlists share that title. Use the full path or the numeric id instead.</p>
+  <h3>The sync is rejected with a track limit</h3>
+  <p>Your plan allows fewer tracks than you selected. Choose fewer or smaller playlists.</p>
+</main>
+
+<footer class="site">
+  <div class="bar">
+    <span>djrequest-link · <a href="https://github.com/PachiSystems/djrequest-link/blob/main/LICENSE.md">PolyForm Noncommercial 1.0.0</a></span>
+    <span><a href="https://github.com/PachiSystems/djrequest-link/issues">Report a problem</a></span>
+  </div>
+</footer>
+<script src="docs.js"></script>
+</body>
+</html>

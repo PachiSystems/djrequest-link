@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Command reference · djrequest-link</title>
+  <meta name="description" content="Every djrequest-link command, option and environment variable.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%236d3fd8'/%3E%3C/svg%3E">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="site">
+  <div class="bar">
+    <a class="brand" href="./"><span class="dot"></span>djrequest-link</a>
+    <nav class="main" aria-label="Documentation">
+      <a href="./">Get started</a>
+      <a href="now-playing.html">Now Playing</a>
+      <a href="catalogue.html">Catalogue sync</a>
+      <a href="reference.html" aria-current="page">Command reference</a>
+      <a href="security.html">Security</a>
+      <a href="https://github.com/PachiSystems/djrequest-link">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="content">
+  <h1>Command reference</h1>
+  <p class="lead">Commands are grouped: <code>djrequest-link &lt;group&gt; &lt;command&gt; [options]</code>.
+    Add <code>--help</code> to any group for the same information in your terminal.</p>
+
+  <nav class="toc" aria-label="On this page">
+    <strong>Groups</strong>
+    <ul>
+      <li><a href="#global">Global options &amp; environment</a></li>
+      <li><a href="#auth">auth</a></li>
+      <li><a href="#venues">venues</a></li>
+      <li><a href="#now-playing">now-playing</a></li>
+      <li><a href="#catalogue">catalogue</a></li>
+    </ul>
+  </nav>
+
+  <h2 id="global">Global options &amp; environment</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Option / variable</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>--api-url &lt;url&gt;</code></td><td>DJRequest.me address. Default
+          <code>https://www.djrequest.me</code>. Must be <code>https://</code>; plain <code>http://</code> is
+          allowed only for <code>localhost</code>.</td></tr>
+        <tr><td><code>--api-key &lt;key&gt;</code></td><td>API key for this one command. Prefer
+          <code>auth set-key</code> — command-line flags end up in your shell history.</td></tr>
+        <tr><td><code>DJREQUEST_API_KEY</code></td><td>API key, used instead of the keychain.</td></tr>
+        <tr><td><code>DJREQUEST_API_URL</code></td><td>Default for <code>--api-url</code>.</td></tr>
+        <tr><td><code>DJREQUEST_VENUE_ID</code></td><td>Default for <code>--venue</code>.</td></tr>
+        <tr><td><code>DJREQUEST_NO_KEYCHAIN=1</code></td><td>Never read the OS keychain.</td></tr>
+        <tr><td><code>DJREQUEST_DEBUG=1</code></td><td>Show stack traces for unexpected errors (they can include
+          file paths from your machine).</td></tr>
+        <tr><td><code>-h</code>, <code>--help</code> / <code>-v</code>, <code>--version</code></td><td>Help / version.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p>The API key is looked up in this order: <code>--api-key</code>, then <code>DJREQUEST_API_KEY</code>, then
+    the keychain entry saved for the API URL in use.</p>
+
+  <h2 id="auth">auth</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Command</th><th>Options</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>auth set-key</code></td><td><code>--no-verify</code></td><td>Prompts for your key (hidden), or
+          reads it from stdin when piped. Checks it against the API unless <code>--no-verify</code>, then saves it in
+          the OS keychain for the API URL.</td></tr>
+        <tr><td><code>auth status</code></td><td><code>--check</code></td><td>Shows the API URL and the last four
+          characters of the key in use, and where it came from. <code>--check</code> also tests it.</td></tr>
+        <tr><td><code>auth remove-key</code></td><td></td><td>Deletes the saved key for the API URL.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="venues">venues</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Command</th><th>Options</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>venues list</code></td><td><code>--json</code></td><td>Lists your venues with their ids.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="now-playing">now-playing</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>now-playing watch</code></td><td>Follows StagelinQ gear and keeps Now Playing up to date until
+          you press <kbd>Ctrl</kbd>+<kbd>C</kbd>. Refuses to start if the venue's live display is off.</td></tr>
+        <tr><td><code>now-playing devices</code></td><td>Lists StagelinQ devices found on the network.</td></tr>
+        <tr><td><code>now-playing show</code></td><td>Prints the current Now Playing.</td></tr>
+        <tr><td><code>now-playing set</code></td><td>Sets Now Playing by hand: <code>--title</code> (required),
+          <code>--artist</code>.</td></tr>
+        <tr><td><code>now-playing clear</code></td><td>Clears Now Playing.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Option</th><th>Commands</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>--venue &lt;id&gt;</code></td><td>watch, show, set, clear</td><td>Venue to update. Not needed
+          with <code>--dry-run</code>.</td></tr>
+        <tr><td><code>--dry-run</code></td><td>watch</td><td>Print decisions only; send nothing. Needs no API key.</td></tr>
+        <tr><td><code>--mode &lt;m&gt;</code></td><td>watch</td><td><code>auto</code> (default), <code>master</code>,
+          or <code>deck:1</code>–<code>deck:4</code>. See <a href="now-playing.html#how">how it decides</a>.</td></tr>
+        <tr><td><code>--min-play &lt;s&gt;</code></td><td>watch</td><td>Seconds a track must be heard before it counts
+          (auto mode). 0–600, default 10.</td></tr>
+        <tr><td><code>--fader-threshold &lt;n&gt;</code></td><td>watch</td><td>Fader position below which a deck is
+          silent. 0–1, default 0.05.</td></tr>
+        <tr><td><code>--idle-clear &lt;min&gt;</code></td><td>watch</td><td>Clear after this many minutes with nothing
+          playing. Default 3.</td></tr>
+        <tr><td><code>--interface &lt;ip&gt;</code></td><td>watch, devices</td><td>Use only the network adapter with
+          this IPv4 address.</td></tr>
+        <tr><td><code>--verbose</code></td><td>watch</td><td>Print device events and every playing deck's state.</td></tr>
+        <tr><td><code>--seconds &lt;n&gt;</code></td><td>devices</td><td>How long to listen. Default 5.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2 id="catalogue">catalogue</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Command</th><th>What it does</th></tr></thead>
+      <tbody>
+        <tr><td><code>catalogue list-playlists</code></td><td>Lists playlists with ids and track counts.</td></tr>
+        <tr><td><code>catalogue sync</code></td><td>Uploads the selected playlists as your catalogue, replacing it.
+          Skipped when unchanged since the last sync.</td></tr>
+        <tr><td><code>catalogue export</code></td><td>Writes the normalized track list to a file.</td></tr>
+        <tr><td><code>catalogue inspect</code></td><td>Read-only database diagnostics.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Option</th><th>Commands</th><th>Meaning</th></tr></thead>
+      <tbody>
+        <tr><td><code>--db &lt;path&gt;</code></td><td>all</td><td>Path to the Engine DJ <code>m.db</code>.</td></tr>
+        <tr><td><code>--playlist &lt;sel&gt;</code></td><td>sync, export</td><td>Full path, unique title, or numeric
+          id. Repeatable.</td></tr>
+        <tr><td><code>--dry-run</code></td><td>sync</td><td>Show counts, size and hash; no network, no key.</td></tr>
+        <tr><td><code>--force</code></td><td>sync</td><td>Upload even if unchanged.</td></tr>
+        <tr><td><code>--manifest &lt;file&gt;</code></td><td>sync</td><td>Change-detection file. Default
+          <code>./djrequest-link.manifest.json</code>.</td></tr>
+        <tr><td><code>--out &lt;file&gt;</code></td><td>export</td><td>Output file.</td></tr>
+        <tr><td><code>--json</code></td><td>list-playlists, inspect</td><td>Machine-readable output.</td></tr>
+        <tr><td><code>--samples &lt;n&gt;</code></td><td>inspect</td><td>Sample values per metadata type (default 3).</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<footer class="site">
+  <div class="bar">
+    <span>djrequest-link · <a href="https://github.com/PachiSystems/djrequest-link/blob/main/LICENSE.md">PolyForm Noncommercial 1.0.0</a></span>
+    <span><a href="https://github.com/PachiSystems/djrequest-link/issues">Report a problem</a></span>
+  </div>
+</footer>
+<script src="docs.js"></script>
+</body>
+</html>

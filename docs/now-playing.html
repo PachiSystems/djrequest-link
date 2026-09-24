@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Now Playing · djrequest-link</title>
+  <meta name="description" content="Show the track you're playing on your DJRequest.me live display, straight from your Denon / Engine DJ gear.">
+  <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='%236d3fd8'/%3E%3C/svg%3E">
+</head>
+<body>
+<a class="skip" href="#content">Skip to content</a>
+<header class="site">
+  <div class="bar">
+    <a class="brand" href="./"><span class="dot"></span>djrequest-link</a>
+    <nav class="main" aria-label="Documentation">
+      <a href="./">Get started</a>
+      <a href="now-playing.html" aria-current="page">Now Playing</a>
+      <a href="catalogue.html">Catalogue sync</a>
+      <a href="reference.html">Command reference</a>
+      <a href="security.html">Security</a>
+      <a href="https://github.com/PachiSystems/djrequest-link">GitHub</a>
+    </nav>
+  </div>
+</header>
+
+<main id="content">
+  <h1>Now Playing</h1>
+  <p class="lead"><code>now-playing watch</code> listens to your Denon DJ / Engine DJ gear over StagelinQ and
+    updates your venue's live display whenever the track in the mix changes.</p>
+
+  <nav class="toc" aria-label="On this page">
+    <strong>On this page</strong>
+    <ul>
+      <li><a href="#before">Before you start</a></li>
+      <li><a href="#setup">Set up at a gig</a></li>
+      <li><a href="#how">How it decides what's playing</a></li>
+      <li><a href="#clearing">When the display is cleared</a></li>
+      <li><a href="#manual">Testing without gear</a></li>
+      <li><a href="#troubleshooting">Troubleshooting</a></li>
+      <li><a href="#limits">Known limitations</a></li>
+    </ul>
+  </nav>
+
+  <h2 id="before">Before you start</h2>
+  <ul>
+    <li>You've <a href="./#install">installed djrequest-link</a> and <a href="./#setup">saved your API key</a>.</li>
+    <li>The venue's <strong>live display is turned on</strong> in your DJRequest.me admin. The tool checks this
+      and won't start if it's off — Now Playing only ever appears on the live display.</li>
+    <li>Your plan includes the <strong>Now Playing</strong> feature. The API accepts updates either way, but the
+      live display only shows them with that feature — so if everything looks fine here but nothing appears on
+      screen, check your plan first.</li>
+  </ul>
+
+  <h2 id="setup">Set up at a gig</h2>
+  <ol class="steps">
+    <li>
+      <strong>Put your laptop on the same network as your gear</strong>
+      <p>Connect the laptop to the same router or switch as your Engine DJ players — a cable is more reliable
+        than Wi-Fi. If you use a VPN, see <a href="#no-devices">no devices found</a>.</p>
+    </li>
+    <li>
+      <strong>Check the tool can see your gear</strong>
+      <pre><code><span class="p">$ </span>djrequest-link now-playing devices</code></pre>
+      <p>You should see each player listed, ending with <em>(deck state OK)</em>. On Windows, the first run shows
+        a firewall prompt — allow access on private networks.</p>
+    </li>
+    <li>
+      <strong>Do a dry run</strong>
+      <pre><code><span class="p">$ </span>djrequest-link now-playing watch --dry-run</code></pre>
+      <p>Play a couple of tracks and mix between them. The tool prints what it <em>would</em> send, without
+        sending anything — the quickest way to check it picks the right deck with your setup.</p>
+    </li>
+    <li>
+      <strong>Go live</strong>
+      <pre><code><span class="p">$ </span>djrequest-link now-playing watch --venue &lt;venue-id&gt;</code></pre>
+      <p>Leave it running while you play. Press <kbd>Ctrl</kbd>+<kbd>C</kbd> when you finish — the display is
+        cleared as it stops.</p>
+    </li>
+  </ol>
+
+  <p>Playing the same venue often? Set the venue once instead of passing <code>--venue</code> every time:</p>
+  <div class="tabs">
+    <div role="tablist" aria-label="Operating system">
+      <button role="tab" id="tab-unix" aria-controls="panel-unix" data-os="unix">macOS / Linux</button>
+      <button role="tab" id="tab-win" aria-controls="panel-win" data-os="windows">Windows (PowerShell)</button>
+    </div>
+    <div role="tabpanel" id="panel-unix" aria-labelledby="tab-unix">
+      <pre><code><span class="p">$ </span>export DJREQUEST_VENUE_ID="&lt;venue-id&gt;"
+<span class="p">$ </span>djrequest-link now-playing watch</code></pre>
+    </div>
+    <div role="tabpanel" id="panel-win" aria-labelledby="tab-win">
+      <pre><code><span class="p">&gt; </span>$env:DJREQUEST_VENUE_ID = "&lt;venue-id&gt;"
+<span class="p">&gt; </span>djrequest-link now-playing watch</code></pre>
+    </div>
+  </div>
+
+  <h2 id="how">How it decides what's playing</h2>
+  <p>Several decks report at once — you're cueing the next track, blending two, or a finished track is still
+    loaded. By default (<code>--mode auto</code>) a track counts as <em>now playing</em> once it has been
+    <strong>heard in the room</strong> — playing with its channel fader up — for 10 seconds. When two tracks
+    qualify, the one that came into the mix most recently wins.</p>
+  <ul>
+    <li><strong>Cueing in headphones never counts</strong> while the channel fader is down.</li>
+    <li>In a blend, the incoming track takes over 10 seconds after its fader comes up.</li>
+    <li>If the tool can't see a fader position for a deck (for example some players without a built-in mixer),
+      the deck is treated as audible whenever it plays.</li>
+  </ul>
+  <p>If that doesn't suit how you play, change it:</p>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Option</th><th>Use it when</th></tr></thead>
+      <tbody>
+        <tr><td><code>--min-play 20</code></td><td>Long blends switch too early. Raise the seconds a track must be
+          heard (0–600, default 10).</td></tr>
+        <tr><td><code>--fader-threshold 0.2</code></td><td>A deck just barely up counts as playing. Set how far up
+          (0–1, default 0.05) the fader must be.</td></tr>
+        <tr><td><code>--mode master</code></td><td>You use sync, and want the tempo-master deck.</td></tr>
+        <tr><td><code>--mode deck:1</code></td><td>Only one deck matters (1–4).</td></tr>
+        <tr><td><code>--verbose</code></td><td>You want to see every deck's state as the tool sees it.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>What gets sent</h3>
+  <p>Only the <strong>track title and artist</strong>. Nothing else from your gear — no file paths, no library
+    details — is read or sent. The display is updated only when the track actually changes, and at most once
+    every 5 seconds.</p>
+
+  <h2 id="clearing">When the display is cleared</h2>
+  <ul>
+    <li>When you stop the tool with <kbd>Ctrl</kbd>+<kbd>C</kbd>.</li>
+    <li>When nothing has been playing for 3 minutes (change with <code>--idle-clear &lt;minutes&gt;</code>) —
+      for example your gear is switched off or the network drops.</li>
+    <li>When your laptop wakes from sleep, until a track is confirmed again.</li>
+  </ul>
+  <div class="warn">
+    <p>DJRequest.me keeps showing the last track it was sent until something clears it. If the laptop's battery
+      dies or the tool is force-quit, clear the display by hand:
+      <code>djrequest-link now-playing clear --venue &lt;id&gt;</code>.</p>
+  </div>
+  <p>djrequest-link only ever clears a track <em>it</em> set, so it won't remove something you entered by hand
+    in the admin.</p>
+
+  <h2 id="manual">Testing without gear</h2>
+  <p>Check the live display end to end without any hardware:</p>
+  <pre><code><span class="p">$ </span>djrequest-link now-playing set --venue &lt;id&gt; --title "Test Track" --artist "Test Artist"
+<span class="p">$ </span>djrequest-link now-playing show --venue &lt;id&gt;
+<span class="p">$ </span>djrequest-link now-playing clear --venue &lt;id&gt;</code></pre>
+
+  <h2 id="troubleshooting">Troubleshooting</h2>
+
+  <h3 id="no-devices">No devices found</h3>
+  <ul>
+    <li>Make sure the laptop and players are on the same network, and the players are switched on and have
+      finished booting.</li>
+    <li>Allow incoming UDP port <strong>51337</strong> in your firewall. On Windows, if you dismissed the
+      prompt, allow Node.js in <em>Windows Security → Firewall &amp; network protection → Allow an app through
+      firewall</em>.</li>
+    <li>VPNs and multiple network adapters can get in the way. Tell the tool which adapter to use with
+      <code>--interface &lt;your laptop's IP on the DJ network&gt;</code>.</li>
+  </ul>
+
+  <h3>“The live display is turned off for …”</h3>
+  <p>Turn on the live display in that venue's settings in your DJRequest.me admin, then run the command again.</p>
+
+  <h3>It says “Now playing: …” but nothing appears on screen</h3>
+  <p>Check your plan includes the <strong>Now Playing</strong> feature, and that the live display page is open
+    for the right venue.</p>
+
+  <h3>The wrong deck shows up</h3>
+  <p>Run with <code>--dry-run --verbose</code> to see what each deck reports, then adjust
+    <code>--min-play</code>, <code>--fader-threshold</code> or <code>--mode</code>
+    (<a href="#how">see above</a>). If your setup still confuses it, please
+    <a href="https://github.com/PachiSystems/djrequest-link/issues">open an issue</a> with your gear model and
+    the verbose output.</p>
+
+  <h3>“Missing API key” / “API authentication failed (401)”</h3>
+  <p>Run <code>djrequest-link auth status --check</code>. If the key was regenerated in your admin, save the new
+    one with <code>djrequest-link auth set-key</code>.</p>
+
+  <h3>“The API URL redirects …”</h3>
+  <p>You passed an <code>--api-url</code> (or set <code>DJREQUEST_API_URL</code>) that redirects elsewhere. Use
+    the address the message suggests. The tool never follows redirects with your key.</p>
+
+  <h2 id="limits">Known limitations</h2>
+  <ul>
+    <li><strong>Early days:</strong> the StagelinQ support is new. If something doesn't work with your gear,
+      an issue with your model and <code>--verbose</code> output helps a lot.</li>
+    <li>Denon X1800 / X1850 mixers are ignored, so channel fader positions from those mixers aren't used —
+      the players' own state is.</li>
+    <li>Mixer channel faders are matched to decks by number (channel 1 ↔ deck 1).</li>
+    <li>Only title and artist are shown; the DJRequest.me API doesn't store BPM, key or artwork for Now
+      Playing.</li>
+  </ul>
+</main>
+
+<footer class="site">
+  <div class="bar">
+    <span>djrequest-link · <a href="https://github.com/PachiSystems/djrequest-link/blob/main/LICENSE.md">PolyForm Noncommercial 1.0.0</a></span>
+    <span><a href="https://github.com/PachiSystems/djrequest-link/issues">Report a problem</a></span>
+  </div>
+</footer>
+<script src="docs.js"></script>
+</body>
+</html>

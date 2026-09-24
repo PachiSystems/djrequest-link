@@ -1,107 +1,73 @@
 # djrequest-link
 
-Local companion tool for [DJRequest.me](https://djrequest.me). Runs on your own
-laptop.
+Local companion tool for [DJRequest.me](https://www.djrequest.me). Runs on your
+own laptop.
 
-- **Catalogue sync (available now):** reads your Engine DJ library read-only,
-  lets you pick playlists, and uploads just those tracks as your requestable
-  catalogue.
-- **Now Playing (in development):** reads the current track from Denon /
-  Engine DJ gear over StagelinQ and shows it on your venue's live display.
+- **Now Playing:** follows your Denon DJ / Engine DJ gear over StagelinQ and
+  shows the track you're playing on your venue's live display.
+- **Catalogue sync:** reads your Engine DJ library read-only and uploads the
+  playlists you choose as your requestable catalogue.
 
-See [SECURITY.md](SECURITY.md) for how the tool handles your API key and library.
+**Documentation: <https://pachisystems.github.io/djrequest-link/>**
 
-## Requirements
+## Quick start
 
-- **Node.js 24 or newer.** No `npm install` is needed: the tool has zero
-  dependencies and uses Node's built-in SQLite.
-- A DJRequest.me plan that includes the **Developer API**. Your API key is on the
-  Developer page of your admin.
-
-Standalone installers that don't need Node are planned.
-
-## Setup
-
-Set your API key as an environment variable, not as a command-line flag (flags
-end up in your shell history):
+Requires **Node.js 24+**. There are no dependencies.
 
 ```sh
-# macOS / Linux
-export DJREQUEST_API_KEY="your-key"
+npm install -g github:PachiSystems/djrequest-link
 
-# Windows PowerShell
-$env:DJREQUEST_API_KEY = "your-key"
+djrequest-link auth set-key          # store your API key in the OS keychain
+djrequest-link venues list           # find your venue id
+djrequest-link now-playing watch --dry-run            # check deck detection
+djrequest-link now-playing watch --venue <venue-id>   # go live
 ```
 
-## Catalogue sync (Engine DJ)
-
-### Where is the Engine DJ database?
-
-| OS | Path |
-|----|------|
-| macOS | `~/Music/Engine Library/Database2/m.db` |
-| Windows | `%USERPROFILE%\Music\Engine Library\Database2\m.db` |
-
-If you sync Engine DJ to an external/USB drive, look for
-`Engine Library/Database2/m.db` on that drive instead.
-
-> **Close Engine DJ first.** The tool reads a snapshot of the database without
-> locking it, so changes Engine DJ hasn't saved yet won't be included. It warns
-> you when it detects this.
-
-### Commands
-
-List your playlists:
+Sync Engine DJ playlists as your catalogue:
 
 ```sh
-node bin/djrequest-link.js catalogue list-playlists --db "/path/to/m.db"
+djrequest-link catalogue list-playlists --db "/path/to/Engine Library/Database2/m.db"
+djrequest-link catalogue sync --db "/path/to/m.db" --playlist "House/Deep" --playlist "Top 100"
 ```
 
-Preview a sync without uploading (no API key needed):
+Run `djrequest-link --help`, or see the
+[command reference](https://pachisystems.github.io/djrequest-link/reference.html).
 
-```sh
-node bin/djrequest-link.js catalogue sync --db "/path/to/m.db" \
-  --playlist "House/Deep" --playlist "Top 100" --dry-run
-```
+## Security
 
-Sync for real:
+- Your API key is stored only in the OS keychain (macOS Keychain, Windows
+  Credential Manager, Linux Secret Service). It is only sent over HTTPS, and
+  never to a redirect target.
+- Your Engine DJ `m.db` is opened read-only and is never uploaded.
+- There is no telemetry and no third-party code.
 
-```sh
-node bin/djrequest-link.js catalogue sync --db "/path/to/m.db" \
-  --playlist "House/Deep" --playlist "Top 100"
-```
-
-- **A sync replaces your whole catalogue** with exactly the tracks in the
-  playlists you name, so pass every playlist you want requestable in one command.
-- `--playlist` accepts a full path (`House/Deep`), a unique title, or a numeric
-  id. Tracks that appear in several playlists are only counted once.
-- Re-running with the same selection skips the upload if nothing changed. It
-  keeps state in `./djrequest-link.manifest.json`, which never contains your API
-  key. Use `--force` to upload anyway.
-- `catalogue export --out file.json` writes the normalized tracks locally
-  without uploading. `catalogue inspect` prints read-only schema diagnostics.
-
-Run `node bin/djrequest-link.js --help` for every option.
-
-### What gets uploaded
-
-Your `m.db` is **never** uploaded or modified. The tool opens it read-only
-without creating any files next to it. Only a normalized list of the selected
-tracks is sent: title, artist, album, genre, BPM, key (Camelot), length, year,
-label and similar fields. Local file paths are not included.
+See [SECURITY.md](SECURITY.md) and the
+[security page](https://pachisystems.github.io/djrequest-link/security.html).
 
 ## Development
 
 ```sh
-npm test        # node --test, synthetic in-memory fixtures only
+npm test        # node --test; synthetic fixtures and a fake StagelinQ device
 npm run lint    # syntax check
-npm run check   # refuses committed databases, exports, keys, and real paths
+npm run check   # blocks committed databases, exports, keys, real paths, bidi chars
 ```
 
-Never commit a real `m.db`, a library export, or an API key. `.gitignore` and
-`npm run check` (which also runs in CI) are there to catch mistakes.
+To test Now Playing without hardware, run a fake two-deck player on your LAN
+in one terminal and a dry-run watcher in another:
+
+```sh
+node scripts/simulate-device.js
+node bin/djrequest-link.js now-playing watch --dry-run --min-play 5
+```
+
+Never commit a real `m.db`, a library export, or an API key. CI runs
+`npm run check` on every push.
+
+The docs site is the static HTML in [`docs/`](docs/). It is published to
+GitHub Pages by `.github/workflows/pages.yml`.
 
 ## Licence
 
 [PolyForm Noncommercial 1.0.0](LICENSE.md). Free for personal and other
-non-commercial use. For commercial use, contact the author.
+non-commercial use. For commercial use, contact the author. The protocol
+references are acknowledged in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

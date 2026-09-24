@@ -9,6 +9,17 @@
   "bin": {
     "djrequest-link": "bin/djrequest-link.js"
   },
+  "files": [
+    "bin/",
+    "src/",
+    "SECURITY.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/PachiSystems/djrequest-link.git"
+  },
+  "homepage": "https://pachisystems.github.io/djrequest-link/",
   "engines": {
     "node": ">=24"
   },
