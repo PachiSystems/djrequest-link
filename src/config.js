@@ -2,7 +2,9 @@
 
 const { LinkError } = require("./errors");
 
-const DEFAULT_API_URL = "https://djrequest.me";
+// The www host is canonical: https://djrequest.me 308-redirects to it, and a
+// redirect to another host drops the Authorization header.
+const DEFAULT_API_URL = "https://www.djrequest.me";
 const ENV_API_URL = "DJREQUEST_API_URL";
 const ENV_API_KEY = "DJREQUEST_API_KEY";
 
@@ -47,7 +49,7 @@ function validateApiUrl(raw) {
   return `${url.origin}${url.pathname}`.replace(/\/+$/, "");
 }
 
-/** --api-url flag → DJREQUEST_API_URL → https://djrequest.me, validated. */
+/** --api-url flag → DJREQUEST_API_URL → DEFAULT_API_URL, validated. */
 function resolveApiUrl(flagValue, env = process.env) {
   return validateApiUrl(flagValue || env[ENV_API_URL] || DEFAULT_API_URL);
 }

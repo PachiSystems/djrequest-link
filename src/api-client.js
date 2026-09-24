@@ -26,15 +26,31 @@ function createApiClient({ apiUrl, apiKey, fetchImpl }) {
     }
   }
 
-  // POST JSON and parse a JSON response, mapping every failure mode to a clear
-  // LinkError — including non-JSON (HTML) bodies, which happen when
-  // --api-url is wrong or the endpoints are not deployed.
-  async function postJson(path, body) {
+  // Send an authenticated JSON request and parse the JSON response, mapping
+  // every failure mode to a clear LinkError — including non-JSON (HTML) bodies,
+  // which happen when --api-url is wrong or the endpoints are not deployed.
+  //
+  // Redirects are never followed: fetch drops the Authorization header on a
+  // cross-host redirect (so it would fail as a baffling 401), and following
+  // one would send the key somewhere the user did not configure.
+  async function requestJson(method, path, body) {
     const url = `${base}${path}`;
-    const res = await rawFetch("POST", url, {
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-      body: JSON.stringify(body),
-    });
+    const headers = { Authorization: `Bearer ${apiKey}` };
+    const init = { headers, redirect: "manual" };
+    if (body !== undefined) {
+      headers["Content-Type"] = "application/json";
+      init.body = JSON.stringify(body);
+    }
+    const res = await rawFetch(method, url, init);
+
+    if (res.status >= 300 && res.status < 400) {
+      const location = res.headers.get("location");
+      throw new LinkError(
+        `The API URL redirects (HTTP ${res.status})${location ? ` to ${redirectBase(location, path)}` : ""}. ` +
+          "Use that address as --api-url (or DJREQUEST_API_URL) instead.",
+        "API_REDIRECT"
+      );
+    }
 
     const text = await res.text();
     const data = tryParseJson(text);
@@ -42,13 +58,13 @@ function createApiClient({ apiUrl, apiKey, fetchImpl }) {
     if (!res.ok) {
       const message =
         (data && (data.error || data.message)) || describeNonJson(text, res, url);
-      throw mapApiError(res.status, message);
+      throw mapApiError(res.status, message, res.headers.get("retry-after"));
     }
 
     if (data === undefined) {
       throw new LinkError(
         `Expected JSON from ${url} but received ${nonJsonKind(text)} (HTTP ${res.status}). ` +
-          "Check that --api-url is correct and that the catalogue sync endpoints are deployed.",
+          "Check that --api-url is correct and that the endpoints are deployed.",
         "BAD_RESPONSE"
       );
     }
@@ -56,7 +72,30 @@ function createApiClient({ apiUrl, apiKey, fetchImpl }) {
     return data;
   }
 
+  const postJson = (path, body) => requestJson("POST", path, body);
+  const venuePath = (venueId) => `/api/v1/venues/${encodeURIComponent(requireVenueId(venueId))}`;
+
   return {
+    async listVenues() {
+      return requestJson("GET", "/api/v1/venues");
+    },
+
+    async getVenue(venueId) {
+      return requestJson("GET", venuePath(venueId));
+    },
+
+    async getNowPlaying(venueId) {
+      return requestJson("GET", `${venuePath(venueId)}/now-playing`);
+    },
+
+    async setNowPlaying(venueId, { trackTitle, trackArtist }) {
+      return requestJson("PUT", `${venuePath(venueId)}/now-playing`, { trackTitle, trackArtist });
+    },
+
+    async clearNowPlaying(venueId) {
+      return requestJson("DELETE", `${venuePath(venueId)}/now-playing`);
+    },
+
     requestUploadUrl({ fileName, fileSize, sha256, trackCount, playlistPaths }) {
       return postJson("/api/v1/catalogue/sync/upload-url", {
         source: SYNC_SOURCE,
@@ -111,6 +150,27 @@ function assertSecureUploadUrl(uploadUrl) {
   }
 }
 
+function requireVenueId(venueId) {
+  const id = String(venueId ?? "").trim();
+  if (!id) throw new LinkError("A venue id is required (--venue <id>).", "BAD_ARGS");
+  return id;
+}
+
+// Strip the request path back off a redirect Location so the message shows the
+// base URL the user should configure.
+function redirectBase(location, path) {
+  return location.endsWith(path) ? location.slice(0, -path.length) : location;
+}
+
+/** Parse a Retry-After header (seconds or HTTP date) into milliseconds. */
+function parseRetryAfter(value, now = Date.now()) {
+  if (!value) return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) return Math.round(seconds * 1000);
+  const date = Date.parse(value);
+  return Number.isNaN(date) ? undefined : Math.max(0, date - now);
+}
+
 function tryParseJson(text) {
   if (!text) return undefined;
   try {
@@ -134,7 +194,7 @@ function describeNonJson(text, res, url) {
   return res.statusText || `HTTP ${res.status}`;
 }
 
-function mapApiError(status, message) {
+function mapApiError(status, message, retryAfter) {
   if (status === 401) {
     return new LinkError(
       `API authentication failed (401). Check your --api-key. ${message}`.trim(),
@@ -151,7 +211,9 @@ function mapApiError(status, message) {
     );
   }
   if (status === 429) {
-    return new LinkError("API rate limited (429). Wait a minute and retry.", "API_RATE_LIMITED");
+    const err = new LinkError("API rate limited (429). Wait a minute and retry.", "API_RATE_LIMITED");
+    err.retryAfterMs = parseRetryAfter(retryAfter);
+    return err;
   }
   if (status >= 400 && status < 500) {
     return new LinkError(message || `API request failed (${status}).`, "API_BAD_REQUEST");
@@ -159,4 +221,4 @@ function mapApiError(status, message) {
   return new LinkError(`API error (${status}): ${message}`, "API_ERROR");
 }
 
-module.exports = { createApiClient };
+module.exports = { createApiClient, parseRetryAfter };
