@@ -7,6 +7,9 @@ const path = require("node:path");
 const { createFixtureDb, createInlineFixtureDb, cleanup } = require("./fixtures");
 const { run } = require("../src/cli");
 
+// Never touch the developer's real keychain from tests.
+process.env.DJREQUEST_NO_KEYCHAIN = "1";
+
 function captureStdout(fn) {
   const original = process.stdout.write;
   let output = "";

@@ -72,12 +72,7 @@ class StagelinqClient extends EventEmitter {
   }
 
   onDevice(device) {
-    if (this.stopped) return;
-    const existing = this.connections.get(device.id);
-    if (existing && existing.device.address === device.address && existing.device.port === device.port) {
-      return;
-    }
-    if (existing) this.drop(device.id, "device address changed");
+    if (this.stopped || this.connections.has(device.id)) return;
     const retry = this.retries.get(device.id);
     if (retry && retry.timer) return; // a reconnect is already scheduled
     this.connect(device);

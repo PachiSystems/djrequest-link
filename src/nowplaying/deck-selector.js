@@ -8,12 +8,12 @@
  * Several decks report state at once (a DJ cues the next track in headphones,
  * blends two tracks, leaves a finished track loaded). Strategies:
  *
- *   auto (default)  Among decks that are playing, have a title, are audible
- *                   (channel fader up, when the fader position is known) and
- *                   have been playing for at least `minPlaySeconds`, pick the
- *                   one that started most recently. During a blend, the
- *                   incoming track takes over once it has been audible long
- *                   enough; a quick cue with the fader down never counts.
+ *   auto (default)  Among decks whose track has been *heard* — playing with
+ *                   the channel fader up (or fader position unknown) — for at
+ *                   least `minPlaySeconds`, pick the one heard most recently.
+ *                   Time spent cueing in headphones doesn't count, so during
+ *                   a blend the incoming track takes over only once it has
+ *                   been in the mix long enough.
  *   master          The playing deck that is sync/tempo master.
  *   deck:N          Always deck N (N = 1–4), whenever it is playing.
  */
@@ -54,6 +54,7 @@ class DeckTracker {
         play: undefined,
         playState: undefined,
         playStartedAt: null,
+        heardSince: null,
         isMaster: false,
         volume: undefined,
         loaded: undefined,
@@ -72,6 +73,8 @@ class DeckTracker {
       const v = asNumber(value);
       if (v === undefined) return false;
       this.faders.set(`${deviceId}/${fader[1]}`, v);
+      const d = this.decks.get(`${deviceId}/${fader[1]}`);
+      if (d) this.refreshHeard(d, now);
       return true;
     }
 
@@ -104,8 +107,9 @@ class DeckTracker {
         const title = (asString(value) || "").trim();
         if (title !== d.title) {
           d.title = title;
-          // A new track on a deck that is already rolling starts its clock now.
+          // A new track on a deck that is already rolling starts its clocks now.
           if (isPlaying(d)) d.playStartedAt = now;
+          d.heardSince = null;
         }
         break;
       }
@@ -117,7 +121,19 @@ class DeckTracker {
     const playing = isPlaying(d);
     if (playing && !wasPlaying) d.playStartedAt = now;
     if (!playing) d.playStartedAt = null;
+    this.refreshHeard(d, now);
     return true;
+  }
+
+  /**
+   * `heardSince` is when the deck's current track became audible to the room
+   * (playing with the fader up). Cueing in headphones doesn't count, so a
+   * track only takes over once it has been *heard* for minPlaySeconds.
+   */
+  refreshHeard(d, now) {
+    const heard = isPlaying(d) && this.isAudible(d);
+    if (!heard) d.heardSince = null;
+    else if (d.heardSince === null) d.heardSince = now;
   }
 
   /** Forget everything from a device that disconnected. */
@@ -151,13 +167,13 @@ class DeckTracker {
     } else if (mode === "master") {
       candidates = live.filter((d) => d.isMaster);
     } else {
-      candidates = live.filter(
-        (d) => this.isAudible(d) && d.playStartedAt !== null && now - d.playStartedAt >= minMs
-      );
+      candidates = live.filter((d) => d.heardSince !== null && now - d.heardSince >= minMs);
     }
     if (candidates.length === 0) return null;
 
-    candidates.sort((a, b) => (b.playStartedAt ?? 0) - (a.playStartedAt ?? 0) || a.key.localeCompare(b.key));
+    // Most recently heard (auto) / started (master, deck) wins.
+    const since = (d) => (mode === "auto" ? d.heardSince : d.playStartedAt) ?? 0;
+    candidates.sort((a, b) => since(b) - since(a) || a.key.localeCompare(b.key));
     const pick = candidates[0];
     return { deck: pick.key, title: pick.title, artist: pick.artist };
   }
@@ -168,8 +184,8 @@ class DeckTracker {
     const minMs = this.options.minPlaySeconds * 1000;
     let soonest = null;
     for (const d of this.decks.values()) {
-      if (!isPlaying(d) || !d.title || d.playStartedAt === null) continue;
-      const wait = d.playStartedAt + minMs - now;
+      if (!d.title || d.heardSince === null) continue;
+      const wait = d.heardSince + minMs - now;
       if (wait > 0 && (soonest === null || wait < soonest)) soonest = wait;
     }
     return soonest;
@@ -183,6 +199,7 @@ class DeckTracker {
         deck: d.key,
         playing: isPlaying(d),
         playingFor: d.playStartedAt === null ? null : Math.round((now - d.playStartedAt) / 1000),
+        heardFor: d.heardSince === null ? null : Math.round((now - d.heardSince) / 1000),
         fader: this.faderFor(d),
         master: d.isMaster,
         title: d.title,

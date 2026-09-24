@@ -12,6 +12,8 @@ const {
 } = require("./wire");
 
 const ANNOUNCE_INTERVAL_MS = 1000;
+// Devices announce every second; one silent for this long is gone.
+const DEVICE_TIMEOUT_MS = 10_000;
 
 // Software that announces on StagelinQ but has no decks to read (or that is
 // known to misbehave when a third party connects). Mirrors chrisle/StageLinq.
@@ -75,17 +77,18 @@ function isIgnoredSoftware(name) {
  * TCP listening ports at all.
  *
  * Events:
- *   "device"      { id, address, port, name, software, version }   (new or changed)
- *   "device-lost" { id }
+ *   "device"      { id, address, port, name, software, version }   (newly seen)
+ *   "device-lost" { id }                                           (exited or silent 10 s)
  *   "error"       Error                                           (socket failure)
  */
 class Discovery extends EventEmitter {
-  constructor({ token, name, softwareName, softwareVersion, interfaceAddress, dgramImpl = dgram } = {}) {
+  constructor({ token, name, softwareName, softwareVersion, interfaceAddress, dgramImpl = dgram, getInterfaces } = {}) {
     super();
     this.token = token;
     this.identity = { source: name, softwareName, softwareVersion };
     this.interfaceAddress = interfaceAddress || null;
     this.dgram = dgramImpl;
+    this.getInterfaces = getInterfaces || (() => localInterfaces(this.interfaceAddress));
     this.devices = new Map();
     this.sendSockets = new Map(); // local address → socket
     this.listenSocket = null;
@@ -103,7 +106,10 @@ class Discovery extends EventEmitter {
       });
       sock.bind(DISCOVERY_PORT, () => {
         this.announce(ACTION_HOWDY);
-        this.timer = setInterval(() => this.announce(ACTION_HOWDY), ANNOUNCE_INTERVAL_MS);
+        this.timer = setInterval(() => {
+          this.announce(ACTION_HOWDY);
+          this.expire();
+        }, ANNOUNCE_INTERVAL_MS);
         this.timer.unref?.();
         resolve();
       });
@@ -122,17 +128,25 @@ class Discovery extends EventEmitter {
 
   onMessage(msg, rinfo) {
     if (msg.length > 8192) return;
-    if (!isLocalPeer(rinfo.address, localInterfaces(this.interfaceAddress))) return;
+    if (!isLocalPeer(rinfo.address, this.getInterfaces())) return;
     const m = decodeDiscovery(msg);
     if (!m || m.token.equals(this.token)) return;
     if (isIgnoredSoftware(m.softwareName)) return;
 
-    const id = m.token.toString("hex");
+    // A device is its token at an address and port: a restarted device (new
+    // port) is a new device, and two announcers sharing a token can't make
+    // one connection flap between them.
+    const id = `${m.token.toString("hex")}@${rinfo.address}:${m.port}`;
     if (m.action === ACTION_EXIT) {
       if (this.devices.delete(id)) this.emit("device-lost", { id });
       return;
     }
 
+    const known = this.devices.get(id);
+    if (known) {
+      known.lastSeen = Date.now();
+      return;
+    }
     const device = {
       id,
       token: m.token,
@@ -141,11 +155,19 @@ class Discovery extends EventEmitter {
       name: m.source.slice(0, 64),
       software: m.softwareName.slice(0, 64),
       version: m.softwareVersion.slice(0, 32),
+      lastSeen: Date.now(),
     };
-    const prev = this.devices.get(id);
     this.devices.set(id, device);
-    if (!prev || prev.address !== device.address || prev.port !== device.port) {
-      this.emit("device", device);
+    this.emit("device", device);
+  }
+
+  /** Forget devices that stopped announcing (powered off without saying goodbye). */
+  expire(now = Date.now()) {
+    for (const [id, d] of this.devices) {
+      if (now - d.lastSeen > DEVICE_TIMEOUT_MS) {
+        this.devices.delete(id);
+        this.emit("device-lost", { id });
+      }
     }
   }
 
@@ -156,7 +178,7 @@ class Discovery extends EventEmitter {
    */
   async announce(action) {
     const msg = encodeDiscovery({ token: this.token, action, ...this.identity, port: 0 });
-    const ifaces = localInterfaces(this.interfaceAddress);
+    const ifaces = this.getInterfaces();
     const live = new Set(ifaces.map((i) => i.address));
     for (const [addr, s] of this.sendSockets) {
       if (!live.has(addr)) {

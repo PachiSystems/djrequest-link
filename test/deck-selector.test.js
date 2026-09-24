@@ -69,11 +69,21 @@ test("auto: during a blend the incoming track takes over once established", () =
     .at(0).load(1, "Song A", "A").play(1).fader(1, 1)
     .at(100).load(2, "Song B", "B").fader(2, 0).play(2);
   assert.equal(r.at(105).pick(), "Song A / A", "B is still cueing");
-  r.fader(2, 0.8);
-  assert.equal(r.at(108).pick(), "Song A / A", "B playing <10 s");
-  assert.equal(r.at(111).pick(), "Song B / B", "B established → takes over");
+  r.at(140).fader(2, 0.8);
+  assert.equal(r.at(145).pick(), "Song A / A", "B cued for 40 s but only heard for 5 s");
+  assert.equal(r.at(150).pick(), "Song B / B", "B heard for 10 s → takes over");
   r.fader(1, 0).play(1, false);
-  assert.equal(r.at(120).pick(), "Song B / B");
+  assert.equal(r.at(160).pick(), "Song B / B");
+});
+
+test("auto: pulling the fader down and back up restarts the heard clock", () => {
+  const r = rig({ minPlaySeconds: 10 }).at(0).load(1, "Song A", "A").play(1).fader(1, 1);
+  assert.equal(r.at(10).pick(), "Song A / A");
+  r.fader(1, 0);
+  assert.equal(r.at(11).pick(), null, "silent deck doesn't count");
+  r.at(12).fader(1, 1);
+  assert.equal(r.at(15).pick(), null);
+  assert.equal(r.at(22).pick(), "Song A / A");
 });
 
 test("auto: unknown fader position counts as audible (players without a mixer)", () => {
