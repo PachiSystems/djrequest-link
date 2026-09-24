@@ -1,0 +1,52 @@
+# ---------------------------------------------------------------------------
+# PUBLIC REPO. Never commit API keys, Engine DJ databases, library exports, or
+# anything containing real file paths from a DJ's machine.
+# ---------------------------------------------------------------------------
+
+# Secrets / local config
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+config.local.json
+.djrequest-link/
+
+# Engine DJ databases (and SQLite sidecars) — never, in any form
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+*.sqlite
+*.sqlite3
+Engine Library/
+
+# Sync state + catalogue exports (contain library contents / local paths)
+*.manifest.json
+*catalogue*.json
+*.envelope.json
+export*.json
+enginedj*.json
+
+# Logs (may contain paths and track titles)
+*.log
+logs/
+
+# Node
+node_modules/
+npm-debug.log*
+.npm/
+
+# Build / packaging output
+dist/
+out/
+*.blob
+sea-prep.*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
