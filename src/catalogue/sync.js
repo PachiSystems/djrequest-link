@@ -1,7 +1,7 @@
 "use strict";
 
 const { openDatabase } = require("./open-db");
-const { discoverSchema, exportPlaylists } = require("./engine-library");
+const { discoverSchema, exportPlaylists, exportAllTracks } = require("./engine-library");
 const { sha256Hex } = require("../hash");
 const { readManifest, writeManifest } = require("./manifest");
 const { createApiClient } = require("../api-client");
@@ -9,19 +9,20 @@ const { LinkError } = require("../errors");
 
 const DEFAULT_FILE_NAME = "engine-dj-selected-catalogue.json";
 
-function buildEnvelopeFromDb(dbPath, playlists, onWarning = () => {}) {
+/** Export the given playlists, or every track when `all` is true. */
+function buildEnvelopeFromDb(dbPath, playlists, onWarning = () => {}, all = false) {
   const db = openDatabase(dbPath);
   try {
     db.warnings.forEach(onWarning);
     const schema = discoverSchema(db);
-    return exportPlaylists(db, schema, playlists);
+    return all ? exportAllTracks(db, schema) : exportPlaylists(db, schema, playlists);
   } finally {
     db.close();
   }
 }
 
 /**
- * Export the selected playlists, hash the normalized envelope, and (unless
+ * Export the selected playlists (or, with `all`, every track), hash the normalized envelope, and (unless
  * unchanged or dry-run) upload it via the signed-URL flow:
  *   upload-url → PUT envelope → finalize, then update the manifest.
  *
@@ -35,6 +36,7 @@ async function runSync(options) {
     apiUrl,
     apiKey,
     playlists,
+    all = false,
     manifestPath,
     dryRun = false,
     force = false,
@@ -50,14 +52,17 @@ async function runSync(options) {
       "BAD_ARGS"
     );
   }
-  if (!playlists || playlists.length === 0) {
-    throw new LinkError("At least one --playlist is required.", "BAD_ARGS");
+  if (all && playlists && playlists.length > 0) {
+    throw new LinkError("Use either --all or --playlist, not both.", "BAD_ARGS");
+  }
+  if (!all && (!playlists || playlists.length === 0)) {
+    throw new LinkError("Pass --all, or at least one --playlist.", "BAD_ARGS");
   }
 
-  const envelope = buildEnvelopeFromDb(dbPath, playlists, onWarning);
+  const envelope = buildEnvelopeFromDb(dbPath, playlists, onWarning, all);
   if (envelope.tracks.length === 0) {
     throw new LinkError(
-      "No tracks found in the selected playlist(s) — nothing to sync.",
+      all ? "No tracks found in the library — nothing to sync." : "No tracks found in the selected playlist(s) — nothing to sync.",
       "EMPTY_SELECTION"
     );
   }

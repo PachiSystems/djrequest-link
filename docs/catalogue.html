@@ -26,7 +26,7 @@
 
 <main id="content">
   <h1>Catalogue sync</h1>
-  <p class="lead">Choose playlists from your Engine DJ library and upload just those tracks as the catalogue
+  <p class="lead">Upload your whole Engine DJ library — or just the playlists you choose — as the catalogue
     guests can request from.</p>
 
   <div class="note">
@@ -73,12 +73,19 @@
       Pass every playlist you want requestable in one command.</p>
   </div>
 
-  <h3>Choosing playlists</h3>
+  <h3>Choosing what to upload</h3>
   <ul>
-    <li><code>--playlist</code> accepts a full path (<code>House/Deep</code>), a title if it's unique, or the
-      numeric id from <code>list-playlists</code>.</li>
-    <li>Repeat it for several playlists. A track in more than one playlist is only counted once.</li>
+    <li><code>--all</code> uploads <strong>every track in your library</strong>, including tracks that aren't in
+      any playlist:
+      <pre><code><span class="p">$ </span>djrequest-link catalogue sync --db "/path/to/m.db" --all --dry-run</code></pre>
+    </li>
+    <li>Or pick playlists with <code>--playlist</code>: a full path (<code>House/Deep</code>), a title if it's
+      unique, or the numeric id from <code>list-playlists</code>. Repeat it for several playlists. A track in more
+      than one playlist is only counted once.</li>
+    <li>Use one or the other — not both.</li>
   </ul>
+  <p>Your plan may limit how many tracks your catalogue can hold. Run with <code>--dry-run</code> first to see the
+    count; if it's over your limit, the sync is rejected with a message saying so.</p>
 
   <h3>Re-syncing</h3>
   <p>Run the same command again after changing your playlists. If nothing changed, the upload is skipped. The tool

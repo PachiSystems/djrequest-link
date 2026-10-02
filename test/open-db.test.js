@@ -6,7 +6,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 const { DatabaseSync } = require("node:sqlite");
-const { openDatabase, WAL_WARNING } = require("../src/catalogue/open-db");
+const { openDatabase, WAL_WARNING, JOURNAL_WARNING } = require("../src/catalogue/open-db");
 
 function makeWalDb(dirName = "wal-") {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), dirName));
@@ -87,4 +87,18 @@ test("missing file and directory give clear errors", (t) => {
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   assert.throws(() => openDatabase(path.join(dir, "nope.db")), /not found/);
   assert.throws(() => openDatabase(dir), /directory/);
+});
+
+test("warns on a non-empty m.db-journal, but not an empty one Engine leaves behind", (t) => {
+  const { dir, dbPath } = makeWalDb();
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  fs.writeFileSync(`${dbPath}-journal`, "");
+  let db = openDatabase(dbPath);
+  assert.deepEqual(db.warnings, []);
+  db.close();
+
+  fs.writeFileSync(`${dbPath}-journal`, Buffer.alloc(512, 1));
+  db = openDatabase(dbPath);
+  assert.deepEqual(db.warnings, [JOURNAL_WARNING]);
+  db.close();
 });

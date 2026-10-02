@@ -9,6 +9,8 @@ const {
   listPlaylists,
   resolvePlaylist,
   exportPlaylists,
+  exportAllTracks,
+  ALL_TRACKS_LABEL,
   rawInspect,
 } = require("../src/catalogue/engine-library");
 
@@ -108,6 +110,21 @@ test("exportPlaylists de-dupes across playlists and sorts by stable Id", () => {
   assert.equal(c.Artist, "Unknown Artist");
   assert.equal(c.Genre, undefined); // bracketed genre dropped
   assert.equal(c.Tonality, "8B"); // key 0
+});
+
+test("exportAllTracks includes tracks that are in no playlist", () => {
+  const envelope = withDb((db, schema) => exportAllTracks(db, schema));
+  assert.deepEqual(
+    envelope.tracks.map((t) => t.Id),
+    [101, 102, 103, 104]
+  );
+  assert.equal(envelope.trackCount, 4);
+  assert.deepEqual(envelope.playlistPaths, [ALL_TRACKS_LABEL]);
+  assert.equal(envelope.tracks[3].Title, "Loose Track");
+  assert.equal(envelope.tracks[3].Artist, "Loose Artist");
+  // Same normalization as playlist export.
+  const viaPlaylist = withDb((db, schema) => exportPlaylists(db, schema, ["House/Deep"]));
+  assert.deepEqual(envelope.tracks[0], viaPlaylist.tracks[0]);
 });
 
 test("openDatabase opens read-only — writes are rejected", () => {

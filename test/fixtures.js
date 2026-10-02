@@ -60,6 +60,8 @@ function createFixtureDb() {
   insTrack.run(102, 180, null, 0, null, "Music/Unknown - Track B.mp3", "Unknown - Track B.mp3", null, 124.0);
   // 103: HTML title + bracketed genre + key 0.
   insTrack.run(103, 210, 210, 130, 2019, "Music/clip.mp3", "clip.mp3", 256000, 130.0);
+  // 104: in the collection but in NO playlist (only exported by --all).
+  insTrack.run(104, 240, 240, 122, 2021, "Music/Loose - Track.mp3", "Loose - Track.mp3", 320000, 122.0);
 
   const insText = db.prepare(`INSERT INTO MetaData (id, type, text) VALUES (?, ?, ?)`);
   insText.run(101, META_TEXT.TITLE, "Song A");
@@ -74,6 +76,8 @@ function createFixtureDb() {
   insText.run(102, META_TEXT.ARTIST, "Unknown");
   insText.run(103, META_TEXT.TITLE, "<b>Bold</b> Title");
   insText.run(103, META_TEXT.GENRE, "Trance[hard]");
+  insText.run(104, META_TEXT.TITLE, "Loose Track");
+  insText.run(104, META_TEXT.ARTIST, "Loose Artist");
 
   const insInt = db.prepare(`INSERT INTO MetaDataInteger (id, type, value) VALUES (?, ?, ?)`);
   insInt.run(101, META_INT.KEY, 1); // → 8A

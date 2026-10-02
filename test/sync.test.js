@@ -298,3 +298,14 @@ test("refuses to PUT the catalogue to a non-HTTPS signed URL", async (t) => {
   await assert.rejects(runSync(baseOptions(fx, { fetchImpl })), /non-HTTPS/);
   assert.equal(fetchImpl.calls.length, 1, "no PUT attempted");
 });
+
+test("--all uploads every track with the (All tracks) label", async (t) => {
+  const fx = createInlineFixtureDb();
+  t.after(() => cleanup(fx.dir));
+  const fetchImpl = recordingFetch(uploadHandlers());
+  const outcome = await runSync(baseOptions(fx, { playlists: undefined, all: true, fetchImpl }));
+  assert.equal(outcome.status, "synced");
+  const finalizeBody = JSON.parse(fetchImpl.calls[2].body);
+  assert.deepEqual(finalizeBody.playlistPaths, ["(All tracks)"]);
+  assert.equal(finalizeBody.trackCount, 2);
+});

@@ -23,10 +23,10 @@ djrequest-link now-playing watch --dry-run            # check deck detection
 djrequest-link now-playing watch --venue <venue-id>   # go live
 ```
 
-Sync Engine DJ playlists as your catalogue:
+Sync your Engine DJ library (or chosen playlists) as your catalogue:
 
 ```sh
-djrequest-link catalogue list-playlists --db "/path/to/Engine Library/Database2/m.db"
+djrequest-link catalogue sync --db "/path/to/Engine Library/Database2/m.db" --all --dry-run
 djrequest-link catalogue sync --db "/path/to/m.db" --playlist "House/Deep" --playlist "Top 100"
 ```
 

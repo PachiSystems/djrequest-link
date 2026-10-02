@@ -291,16 +291,37 @@ function exportPlaylists(db, schema, selectors) {
     }
   }
 
+  return buildEnvelope(normalizeRows(db, schema, rowById), playlistPaths);
+}
+
+/** Label sent as the "playlist" when the whole collection is exported. */
+const ALL_TRACKS_LABEL = "(All tracks)";
+
+/**
+ * Export every track in the library, whether or not it is in a playlist.
+ * Same normalization and deterministic envelope as exportPlaylists; the
+ * envelope's playlistPaths is the single label "(All tracks)" (the API
+ * requires a non-empty list).
+ */
+function exportAllTracks(db, schema) {
+  const select = trackSelectColumns(schema.trackColumns).join(", ");
+  const rowById = new Map();
+  for (const row of db.prepare(`SELECT ${select} FROM Track`).all()) {
+    const id = Number(row.id);
+    if (!rowById.has(id)) rowById.set(id, row);
+  }
+  return buildEnvelope(normalizeRows(db, schema, rowById), [ALL_TRACKS_LABEL]);
+}
+
+function normalizeRows(db, schema, rowById) {
   const ids = [...rowById.keys()];
   const { textByTrack, intByTrack } = fetchMetadata(db, schema, ids);
-
   const tracks = [];
   for (const [id, row] of rowById) {
     const track = normalizeTrack(row, textByTrack.get(id), intByTrack.get(id), schema.trackColumns);
     if (track) tracks.push(track);
   }
-
-  return buildEnvelope(tracks, playlistPaths);
+  return tracks;
 }
 
 // ---- Inspection (read-only diagnostics) ------------------------------------
@@ -388,5 +409,7 @@ module.exports = {
   getPlaylistTrackRows,
   fetchMetadata,
   exportPlaylists,
+  exportAllTracks,
+  ALL_TRACKS_LABEL,
   rawInspect,
 };

@@ -15,13 +15,20 @@ const { LinkError } = require("../errors");
 // read-only open is NOT enough: on a WAL-mode database it still creates
 // `m.db-wal` / `m.db-shm` next to the DJ's library and leaves them behind.
 // `immutable=1` tells SQLite the file cannot change, so it takes no locks and
-// creates no sidecar files at all. The cost is that it ignores any pending
-// `m.db-wal` written by a running Engine DJ — we detect that and warn.
+// creates no sidecar files at all. The cost is that it ignores pending changes
+// a running Engine DJ has not finished writing — a non-empty `m.db-wal` (WAL
+// mode) or `m.db-journal` (rollback-journal mode; Engine leaves an EMPTY one
+// behind normally, which is fine). We detect those and warn.
 
 const WAL_WARNING =
   "Engine DJ appears to be running (or did not shut down cleanly): its m.db-wal " +
   "file has unsaved changes that this tool cannot see. Close Engine DJ and run " +
   "again to include your latest library changes.";
+
+const JOURNAL_WARNING =
+  "Engine DJ appears to be writing to the library right now (its m.db-journal " +
+  "file is not empty), so this snapshot may be incomplete. Close Engine DJ and " +
+  "run again.";
 
 /**
  * Open an Engine DJ database strictly read-only, without creating any files.
@@ -54,13 +61,15 @@ function openDatabase(dbPath) {
   }
   enforceReadOnly(db);
   db.driver = "node:sqlite";
-  db.warnings = hasPendingWal(dbPath) ? [WAL_WARNING] : [];
+  db.warnings = [];
+  if (nonEmpty(`${dbPath}-wal`)) db.warnings.push(WAL_WARNING);
+  if (nonEmpty(`${dbPath}-journal`)) db.warnings.push(JOURNAL_WARNING);
   return db;
 }
 
-function hasPendingWal(dbPath) {
+function nonEmpty(file) {
   try {
-    return fs.statSync(`${dbPath}-wal`).size > 0;
+    return fs.statSync(file).size > 0;
   } catch {
     return false;
   }
@@ -76,4 +85,4 @@ function enforceReadOnly(db) {
   }
 }
 
-module.exports = { openDatabase, WAL_WARNING };
+module.exports = { openDatabase, WAL_WARNING, JOURNAL_WARNING };

@@ -9,6 +9,7 @@ const {
   discoverSchema,
   listPlaylists,
   exportPlaylists,
+  exportAllTracks,
   rawInspect,
 } = require("../catalogue/engine-library");
 const { runSync } = require("../catalogue/sync");
@@ -20,14 +21,15 @@ Your m.db is opened strictly read-only and is never modified or uploaded.
 
 Usage:
   djrequest-link catalogue list-playlists --db <m.db> [--json]
-  djrequest-link catalogue sync    --db <m.db> --playlist <sel> [--playlist ...]
+  djrequest-link catalogue sync    --db <m.db> (--all | --playlist <sel> [--playlist ...])
                                    [--dry-run] [--force] [--manifest <file>]
-  djrequest-link catalogue export  --db <m.db> --playlist <sel> [--playlist ...] --out <file.json>
+  djrequest-link catalogue export  --db <m.db> (--all | --playlist <sel> ...) --out <file.json>
   djrequest-link catalogue inspect --db <m.db> [--json] [--samples <n>]
 
 Commands:
   list-playlists   Print every playlist (path, id, track count).
-  sync             Upload the selected playlist(s) as your requestable catalogue.
+  sync             Upload the selected playlist(s) — or with --all, every track
+                   in the library — as your requestable catalogue.
                    REPLACES your whole catalogue with exactly these tracks, so
                    pass every playlist you want live. Skips the upload when
                    nothing changed since the last sync.
@@ -38,6 +40,8 @@ Options:
   --db <path>        Engine DJ database (…/Engine Library/Database2/m.db)
   --playlist <sel>   Playlist full path (e.g. "House/Deep"), title, or numeric id.
                      Repeatable; tracks shared between playlists count once.
+  --all              (sync, export) Every track in the library, including tracks
+                     that aren't in any playlist. Not combinable with --playlist.
   --dry-run          (sync) Show track count, size and hash; no network, no key.
   --force            (sync) Upload even if unchanged since the last sync.
   --manifest <file>  (sync) Change-detection state (default
@@ -54,11 +58,22 @@ function openLibrary(dbPath) {
   return db;
 }
 
-function requirePlaylists(values) {
-  if (!values.playlist || values.playlist.length === 0) {
-    throw new LinkError("At least one --playlist <path-or-id> is required.", "BAD_ARGS");
+/** Exactly one of --all or (one or more) --playlist. */
+function requireSelection(values) {
+  const hasPlaylists = values.playlist && values.playlist.length > 0;
+  if (values.all && hasPlaylists) {
+    throw new LinkError("Use either --all or --playlist, not both.", "BAD_ARGS");
+  }
+  if (!values.all && !hasPlaylists) {
+    throw new LinkError(
+      "Choose what to include: --all for every track, or --playlist <path-or-id> (repeatable).",
+      "BAD_ARGS"
+    );
   }
 }
+
+const describeSelection = (all, playlistCount) =>
+  all ? "all tracks in the library" : `${playlistCount} playlist(s)`;
 
 function listPlaylistsCmd(args) {
   const values = parse(args, { db: { type: "string" }, json: { type: "boolean", default: false } });
@@ -90,24 +105,26 @@ function exportCmd(args) {
   const values = parse(args, {
     db: { type: "string" },
     playlist: { type: "string", multiple: true },
+    all: { type: "boolean", default: false },
     out: { type: "string" },
   });
   requireOption(values.db, "--db <path>");
   requireOption(values.out, "--out <file>");
-  requirePlaylists(values);
+  requireSelection(values);
 
   const db = openLibrary(values.db);
   let envelope;
   try {
-    envelope = exportPlaylists(db, discoverSchema(db), values.playlist);
+    const schema = discoverSchema(db);
+    envelope = values.all ? exportAllTracks(db, schema) : exportPlaylists(db, schema, values.playlist);
   } finally {
     db.close();
   }
   if (envelope.tracks.length === 0) {
-    throw new LinkError("No tracks found in the selected playlist(s) — nothing to export.", "EMPTY_SELECTION");
+    throw new LinkError("No tracks found — nothing to export.", "EMPTY_SELECTION");
   }
   fs.writeFileSync(values.out, JSON.stringify(envelope));
-  out(`Exported ${envelope.trackCount} track(s) from ${envelope.playlistPaths.length} playlist(s) to ${values.out}`);
+  out(`Exported ${envelope.trackCount} track(s) from ${describeSelection(values.all, envelope.playlistPaths.length)} to ${values.out}`);
 }
 
 function inspectCmd(args) {
@@ -166,12 +183,13 @@ async function syncCmd(args) {
     ...API_OPTIONS,
     db: { type: "string" },
     playlist: { type: "string", multiple: true },
+    all: { type: "boolean", default: false },
     manifest: { type: "string" },
     "dry-run": { type: "boolean", default: false },
     force: { type: "boolean", default: false },
   });
   requireOption(values.db, "--db <path>");
-  requirePlaylists(values);
+  requireSelection(values);
 
   const apiUrl = resolveApiUrl(values["api-url"]);
   // A dry run makes no network calls, so it does not need a key.
@@ -186,17 +204,19 @@ async function syncCmd(args) {
     apiKey,
     onWarning: warn,
     playlists: values.playlist,
+    all: values.all,
     manifestPath,
     dryRun: values["dry-run"],
     force: values.force,
   });
-  printSyncOutcome(outcome, manifestPath);
+  printSyncOutcome(outcome, manifestPath, values.all);
 }
 
-function printSyncOutcome(outcome, manifestPath) {
+function printSyncOutcome(outcome, manifestPath, all) {
+  const from = describeSelection(all, outcome.playlistCount);
   const mb = (b) => `${(b / 1048576).toFixed(2)} MB`;
   if (outcome.status === "dry-run") {
-    out(`[dry-run] ${outcome.trackCount} track(s), ${outcome.playlistCount} playlist(s), ~${mb(outcome.sizeBytes)}`);
+    out(`[dry-run] ${outcome.trackCount} track(s) from ${from}, ~${mb(outcome.sizeBytes)}`);
     out(`[dry-run] sha256: ${outcome.hash}`);
     out(
       outcome.wouldSkip
@@ -209,7 +229,7 @@ function printSyncOutcome(outcome, manifestPath) {
     out(`No changes since last sync (sha256 ${outcome.hash.slice(0, 12)}…). Skipping upload.`);
     return;
   }
-  out(`Synced ${outcome.trackCount} track(s) from ${outcome.playlistCount} playlist(s) (~${mb(outcome.sizeBytes)}).`);
+  out(`Synced ${outcome.trackCount} track(s) from ${from} (~${mb(outcome.sizeBytes)}).`);
   out(`Catalogue source set to engine-dj. Manifest: ${manifestPath}`);
 }
 

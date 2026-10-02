@@ -172,3 +172,47 @@ test("unknown commands are clear errors", () => {
   assert.throws(() => run(["node", "cli", "list-playlists"]), /Unknown command: list-playlists/);
   assert.throws(() => run(["node", "cli", "catalogue", "nope"]), /Unknown catalogue command: nope/);
 });
+
+test("sync --all --dry-run covers every track, including ones in no playlist", async (t) => {
+  const fx = createFixtureDb();
+  t.after(() => cleanup(fx.dir));
+  const original = process.stdout.write;
+  let output = "";
+  process.stdout.write = (chunk) => {
+    output += chunk;
+    return true;
+  };
+  try {
+    await run([
+      "node", "cli", "catalogue", "sync",
+      "--db", fx.dbPath,
+      "--all",
+      "--manifest", path.join(fx.dir, "m.json"),
+      "--dry-run",
+    ]);
+  } finally {
+    process.stdout.write = original;
+  }
+  assert.match(output, /\[dry-run\] 4 track\(s\) from all tracks in the library/);
+});
+
+test("export --all writes every track", (t) => {
+  const fx = createFixtureDb();
+  t.after(() => cleanup(fx.dir));
+  const out = path.join(fx.dir, "all.json");
+  captureStdout(() => run(["node", "cli", "catalogue", "export", "--db", fx.dbPath, "--all", "--out", out]));
+  const envelope = JSON.parse(fs.readFileSync(out, "utf-8"));
+  assert.equal(envelope.trackCount, 4);
+  assert.deepEqual(envelope.playlistPaths, ["(All tracks)"]);
+});
+
+test("--all and --playlist are mutually exclusive; one is required", async () => {
+  await assert.rejects(
+    run(["node", "cli", "catalogue", "sync", "--db", "x.db", "--all", "--playlist", "A", "--dry-run"]),
+    /either --all or --playlist/
+  );
+  await assert.rejects(
+    run(["node", "cli", "catalogue", "sync", "--db", "x.db", "--dry-run"]),
+    /--all for every track/
+  );
+});
