@@ -30,6 +30,11 @@ djrequest-link catalogue sync --db "/path/to/Engine Library/Database2/m.db" --al
 djrequest-link catalogue sync --db "/path/to/m.db" --playlist "House/Deep" --playlist "Top 100"
 ```
 
+On Windows PowerShell, if you see "running scripts is disabled on this
+system", use `npm.cmd` and `djrequest-link.cmd` instead of `npm` and
+`djrequest-link`. See the
+[install notes](https://pachisystems.github.io/djrequest-link/#powershell).
+
 Run `djrequest-link --help`, or see the
 [command reference](https://pachisystems.github.io/djrequest-link/reference.html).
 

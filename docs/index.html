@@ -61,6 +61,18 @@
   <pre><code><span class="p">$ </span>djrequest-link --version</code></pre>
   <p>To update later, run the install command again. To remove it:
     <code>npm uninstall -g djrequest-link</code>.</p>
+  <div class="warn" id="powershell">
+    <p><strong>Windows PowerShell: “running scripts is disabled on this system”?</strong> PowerShell blocks
+      <code>npm.ps1</code> by default. You don't need to change any security settings — add <code>.cmd</code> to
+      the command instead:</p>
+    <pre><code><span class="p">&gt; </span>npm.cmd install -g github:PachiSystems/djrequest-link</code></pre>
+    <p>Do the same for the tool itself in PowerShell — <code>djrequest-link.cmd</code> — for example
+      <code>djrequest-link.cmd auth set-key</code>. In Command Prompt (<code>cmd.exe</code>), the plain names work
+      as shown.</p>
+    <p>If you'd rather type the plain names in PowerShell, you can allow locally installed scripts for your own
+      account with <code>Set-ExecutionPolicy -Scope CurrentUser RemoteSigned</code>. That changes a Windows
+      security setting, so it's up to you.</p>
+  </div>
   <div class="note">
     <p>djrequest-link has <strong>no dependencies</strong> — the install downloads only this tool's own code,
       which you can read on <a href="https://github.com/PachiSystems/djrequest-link">GitHub</a>.</p>
