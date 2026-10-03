@@ -264,7 +264,9 @@ async function watch(args) {
 function formatDeck(d) {
   const fader = d.fader === undefined ? "?" : d.fader.toFixed(2);
   const heard = d.heardFor === null ? "not heard" : `heard ${d.heardFor}s`;
-  return `${d.deck}: ${d.playing ? `playing ${d.playingFor}s, ${heard}` : "stopped"}, fader ${fader}${d.master ? ", master" : ""} — ${d.title || "(no track)"}`;
+  const track = d.title ? `"${d.title}" by ${d.artist || "(no artist)"}` : "(no track)";
+  const state = d.playing ? `playing ${d.playingFor}s, ${heard}` : "stopped";
+  return `deck ${d.deck.split("/").pop()}: ${track} — ${state}, fader ${fader}${d.master ? ", sync master" : ""}`;
 }
 
 async function devices(args) {
