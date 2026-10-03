@@ -21,7 +21,7 @@
   },
   "homepage": "https://pachisystems.github.io/djrequest-link/",
   "engines": {
-    "node": ">=24"
+    "node": ">=22.13"
   },
   "scripts": {
     "test": "node --test",

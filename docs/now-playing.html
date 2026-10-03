@@ -62,8 +62,14 @@
     <li>
       <strong>Check the tool can see your gear</strong>
       <pre><code><span class="p">$ </span>djrequest-link now-playing devices</code></pre>
-      <p>You should see each player listed, ending with <em>(deck state OK)</em>. On Windows, the first run shows
-        a firewall prompt — allow access on private networks.</p>
+      <p>You should see each player listed, ending with <em>(deck state OK)</em>. The first run may show
+        permission prompts — allow them:</p>
+      <ul>
+        <li><strong>Windows:</strong> a firewall prompt — allow access on private networks.</li>
+        <li><strong>macOS:</strong> “Do you want the application node to accept incoming network connections?” —
+          click <em>Allow</em>. On macOS 15 and later there's also “Terminal would like to find devices on your
+          local network” — click <em>Allow</em>.</li>
+      </ul>
     </li>
     <li>
       <strong>Do a dry run</strong>
@@ -157,6 +163,11 @@
     <li>Allow incoming UDP port <strong>51337</strong> in your firewall. On Windows, if you dismissed the
       prompt, allow Node.js in <em>Windows Security → Firewall &amp; network protection → Allow an app through
       firewall</em>.</li>
+    <li>On macOS 15 or later, check <em>System Settings → Privacy &amp; Security → Local Network</em> and turn on
+      your terminal app (Terminal, iTerm…). If it's off, the tool can't see your gear and no error is shown.</li>
+    <li>On macOS, if you clicked <em>Deny</em> on the incoming-connections prompt, allow <em>node</em> under
+      <em>System Settings → Network → Firewall → Options</em> (older macOS: <em>Security &amp; Privacy →
+      Firewall</em>).</li>
     <li>VPNs and multiple network adapters can get in the way. Tell the tool which adapter to use with
       <code>--interface &lt;your laptop's IP on the DJ network&gt;</code>.</li>
   </ul>

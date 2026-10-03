@@ -3,10 +3,23 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
-const { DatabaseSync } = require("node:sqlite");
 const { LinkError } = require("../errors");
 
-// Node's built-in node:sqlite (Node >=24) is a statement-based native driver
+// node:sqlite is loaded lazily, only when a catalogue command opens a library,
+// so the rest of the tool (Now Playing, auth, venues) runs even on a Node
+// build where it is unavailable.
+function loadSqlite() {
+  try {
+    return require("node:sqlite");
+  } catch {
+    throw new LinkError(
+      `Reading the Engine DJ library needs Node.js 22.13 or newer (this is ${process.version}).`,
+      "NO_SQLITE_DRIVER"
+    );
+  }
+}
+
+// Node's built-in node:sqlite (Node >=22.13) is a statement-based native driver
 // that does NOT load the whole database into memory, so a 1GB+ m.db is fine.
 // Using it (rather than a native npm module) keeps the tool dependency-free and
 // packageable as a single executable.
@@ -50,6 +63,7 @@ function openDatabase(dbPath) {
   url.searchParams.set("mode", "ro");
   url.searchParams.set("immutable", "1");
 
+  const { DatabaseSync } = loadSqlite();
   let db;
   try {
     db = new DatabaseSync(url, { readOnly: true });

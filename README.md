@@ -12,7 +12,8 @@ own laptop.
 
 ## Quick start
 
-Requires **Node.js 24+**. There are no dependencies.
+Requires **Node.js 22.13+** (Node 22 also runs on older Macs back to macOS 11).
+There are no dependencies.
 
 ```sh
 npm install -g github:PachiSystems/djrequest-link

@@ -1,6 +1,17 @@
 #!/usr/bin/env node
 "use strict";
 
+// Node 22.13+ is required (Node 22 is the newest line that still runs on
+// macOS 11). Say so plainly instead of failing with a syntax/API error.
+const [major, minor] = process.versions.node.split(".").map(Number);
+if (major < 22 || (major === 22 && minor < 13)) {
+  process.stderr.write(
+    `djrequest-link needs Node.js 22.13 or newer; this is ${process.version}. ` +
+      "Download it from https://nodejs.org/\n"
+  );
+  process.exit(1);
+}
+
 // node:sqlite prints an ExperimentalWarning on every run. It is noise for end
 // users (the API is stable enough for our read-only use), so replace Node's
 // default warning printer with one that drops that single warning and prints
