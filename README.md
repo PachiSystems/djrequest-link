@@ -12,7 +12,7 @@ own laptop.
 
 ## Quick start
 
-Requires **Node.js 22.13+** (Node 22 also runs on older Macs back to macOS 11).
+Requires **Node.js 22.15+** (Node 22 also runs on older Macs back to macOS 11).
 There are no dependencies.
 
 ```sh

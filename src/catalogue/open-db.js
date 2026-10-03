@@ -13,13 +13,13 @@ function loadSqlite() {
     return require("node:sqlite");
   } catch {
     throw new LinkError(
-      `Reading the Engine DJ library needs Node.js 22.13 or newer (this is ${process.version}).`,
+      `Reading the Engine DJ library needs Node.js 22.15 or newer (this is ${process.version}).`,
       "NO_SQLITE_DRIVER"
     );
   }
 }
 
-// Node's built-in node:sqlite (Node >=22.13) is a statement-based native driver
+// Node's built-in node:sqlite (Node >=22.15) is a statement-based native driver
 // that does NOT load the whole database into memory, so a 1GB+ m.db is fine.
 // Using it (rather than a native npm module) keeps the tool dependency-free and
 // packageable as a single executable.

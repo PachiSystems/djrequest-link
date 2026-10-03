@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 "use strict";
 
-// Node 22.13+ is required (Node 22 is the newest line that still runs on
+// Node 22.15+ is required (Node 22 is the newest line that still runs on
 // macOS 11). Say so plainly instead of failing with a syntax/API error.
 const [major, minor] = process.versions.node.split(".").map(Number);
-if (major < 22 || (major === 22 && minor < 13)) {
+if (major < 22 || (major === 22 && minor < 15)) {
   process.stderr.write(
-    `djrequest-link needs Node.js 22.13 or newer; this is ${process.version}. ` +
+    `djrequest-link needs Node.js 22.15 or newer; this is ${process.version}. ` +
       "Download it from https://nodejs.org/\n"
   );
   process.exit(1);
