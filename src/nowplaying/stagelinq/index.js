@@ -35,6 +35,7 @@ const RECONNECT_MAX_MS = 30_000;
  *   "device-connected"    device
  *   "device-disconnected" { device, reason }
  *   "state"               { deviceId, name, value }
+ *   "trace"               { device, message }   (connection diagnostics)
  *   "error"               Error (discovery socket)
  */
 class StagelinqClient extends EventEmitter {
@@ -79,7 +80,11 @@ class StagelinqClient extends EventEmitter {
   }
 
   connect(device) {
-    const conn = this.makeConnection(device, { token: this.token, paths: STATE_PATHS });
+    const conn = this.makeConnection(device, {
+      token: this.token,
+      paths: STATE_PATHS,
+      trace: (message) => this.emit("trace", { device, message }),
+    });
     this.connections.set(device.id, conn);
     conn.on("ready", () => {
       this.retries.delete(device.id);

@@ -96,6 +96,12 @@ async function startFakeDevice({ askFirst = true, host = "127.0.0.1" } = {}) {
     writeRaw(bytes) {
       for (const s of stateSockets) s.write(bytes);
     },
+    dropMain() {
+      for (const s of mainSockets) s.destroy();
+    },
+    dropStateMap() {
+      for (const s of stateSockets) s.destroy();
+    },
     dropConnections() {
       for (const s of [...mainSockets, ...stateSockets]) s.destroy();
     },

@@ -81,3 +81,37 @@ test("connection refused emits close", async () => {
   const [{ reason }] = await closed;
   assert.ok(reason);
 });
+
+test("losing only the main connection after StateMap is up does not end the session", async (t) => {
+  const fake = await startFakeDevice();
+  t.after(() => fake.close());
+  const traces = [];
+  const conn = new DeviceConnection(fake.device, { token: TOKEN, paths: STATE_PATHS, trace: (m) => traces.push(m) });
+  const ready = once(conn, "ready");
+  conn.connect();
+  await ready;
+  t.after(() => conn.close());
+  let closed = false;
+  conn.on("close", () => (closed = true));
+
+  fake.dropMain();
+  await new Promise((r) => setTimeout(r, 150));
+  assert.equal(closed, false);
+  assert.ok(traces.some((m) => /main connection closed by device .*carrying on/.test(m)));
+
+  const states = [];
+  conn.on("state", (s) => states.push(s.name));
+  fake.emit("/Engine/Deck1/PlayState", { state: true, type: 1 });
+  await new Promise((r) => setTimeout(r, 100));
+  assert.deepEqual(states, ["/Engine/Deck1/PlayState"]);
+});
+
+test("losing the StateMap connection ends the session with a detailed reason", async (t) => {
+  const fake = await startFakeDevice();
+  t.after(() => fake.close());
+  const conn = await connected(fake);
+  const closed = once(conn, "close");
+  fake.dropStateMap();
+  const [{ reason }] = await closed;
+  assert.match(reason, /StateMap connection closed by device after [\d.]+s \(\d+ bytes received, 0 state updates\)/);
+});

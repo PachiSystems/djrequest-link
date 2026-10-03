@@ -44,8 +44,9 @@ Options:
                            nothing playing (default ${BRIDGE_DEFAULTS.idleClearMs / 60000}).
   --interface <ip>         Only use the network interface with this IPv4 address.
   --verbose                (watch) Also print device and deck details.
+  --debug                  (watch, devices) Also print connection diagnostics.
   --seconds <n>            (devices) How long to listen (default 5).
-  --debug                  (devices) Show network interfaces and every packet received.
+                           (devices: also the network interfaces and every packet received)
   --api-url, --api-key     See \`djrequest-link --help\`.
 `;
 
@@ -97,6 +98,7 @@ async function watch(args) {
     "idle-clear": { type: "string" },
     interface: { type: "string" },
     verbose: { type: "boolean", default: false },
+    debug: { type: "boolean", default: false },
   });
 
   let mode;
@@ -196,6 +198,7 @@ async function watch(args) {
   client.on("state", ({ deviceId, name, value }) => {
     if (tracker.apply(deviceId, name, value, Date.now())) reevaluate();
   });
+  if (values.debug) client.on("trace", ({ device, message }) => log(`  ${device.address} ${message}`));
   client.on("device-connected", (d) => {
     deviceNames.set(d.id, d.name);
     log(`Connected to ${d.name} (${d.software} ${d.version}) at ${d.address}.`);
@@ -303,8 +306,12 @@ async function devices(args) {
       out(line);
     }
   });
+  const states = new Map(); // device id → state updates received
   client.discovery.on("device", (d) => found.set(d.id, d));
-  client.on("device-connected", (d) => found.set(d.id, { ...d, stateMap: true }));
+  client.on("state", ({ deviceId }) => states.set(deviceId, (states.get(deviceId) || 0) + 1));
+  client.on("trace", ({ device, message }) => {
+    if (debug) out(`  ${device.address} ${message}`);
+  });
   let stopping = false;
   client.on("device-disconnected", ({ device, reason }) => {
     if (debug && !stopping) out(`  could not read deck state from ${device.address}: ${reason}`);
@@ -325,7 +332,8 @@ async function devices(args) {
   await client.stop();
 
   for (const d of found.values()) {
-    out(`${d.address}  ${d.name}  ${d.software} ${d.version}${d.stateMap ? "  (deck state OK)" : ""}`);
+    const n = states.get(d.id) || 0;
+    out(`${d.address}  ${d.name}  ${d.software} ${d.version}  ${n > 0 ? `(deck state OK: ${n} updates)` : "(no deck state received)"}`);
   }
   if (found.size > 0) return;
 
