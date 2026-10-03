@@ -35,11 +35,41 @@ function discovery() {
   return { d, events };
 }
 
-test("localInterfaces keeps LAN IPv4 only and computes the broadcast address", () => {
+test("localInterfaces keeps non-loopback IPv4 (incl. link-local) and computes broadcast", () => {
   assert.deepEqual(
-    IFACES.map((i) => [i.address, i.broadcast]),
-    [["192.168.1.20", "192.168.1.255"]]
+    IFACES.map((i) => [i.name, i.address, i.broadcast]),
+    [
+      ["eth0", "192.168.1.20", "192.168.1.255"],
+      // A laptop cabled straight to a player, with no router, gets 169.254.x.x.
+      ["wifi", "169.254.3.4", "169.254.255.255"],
+    ]
   );
+});
+
+test("a player on a direct cable (link-local) is accepted", () => {
+  const { d, events } = discovery();
+  d.onMessage(howdy(), { address: "169.254.88.9" });
+  assert.equal(events.length, 1);
+});
+
+test("every packet is reported with a verdict (for --debug)", () => {
+  const { d } = discovery();
+  const verdicts = [];
+  d.on("packet", (p) => verdicts.push(`${p.from} ${p.result}`));
+  d.onMessage(howdy(), { address: "10.0.0.5" });
+  d.onMessage(Buffer.from("junk"), { address: "192.168.1.50" });
+  d.onMessage(howdy({ token: OUR_TOKEN }), { address: "192.168.1.20" });
+  d.onMessage(howdy({ softwareName: "SoundSwitch" }), { address: "192.168.1.50" });
+  d.onMessage(howdy({ source: "np2", softwareName: "nowplaying", port: 0 }), { address: "192.168.1.95" });
+  d.onMessage(howdy(), { address: "192.168.1.50" });
+  assert.deepEqual(verdicts, [
+    "10.0.0.5 ignored: not on a local network",
+    "192.168.1.50 ignored: not a StagelinQ announcement",
+    "192.168.1.20 ignored: our own announcement",
+    "192.168.1.50 ignored: software on the ignore list",
+    "192.168.1.95 ignored: another app, not a player",
+    "192.168.1.50 accepted",
+  ]);
 });
 
 test("isLocalPeer accepts only hosts on our subnets", () => {

@@ -157,7 +157,12 @@
   <h2 id="troubleshooting">Troubleshooting</h2>
 
   <h3 id="no-devices">No devices found</h3>
+  <p>Start with <code>djrequest-link now-playing devices --debug</code>. It lists the network adapters the tool
+    uses and every StagelinQ packet it hears, with the reason for ignoring any. Then:</p>
   <ul>
+    <li>A cable straight from the laptop to a player (no router) works: both ends give themselves a
+      <code>169.254.x.x</code> address, which should appear in the <em>Interface</em> list. Give it up to a minute
+      after plugging in.</li>
     <li>Make sure the laptop and players are on the same network, and the players are switched on and have
       finished booting.</li>
     <li>Allow incoming UDP port <strong>51337</strong> in your firewall. On Windows, if you dismissed the

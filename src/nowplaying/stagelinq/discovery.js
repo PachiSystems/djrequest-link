@@ -32,19 +32,21 @@ function intToIp(n) {
 
 /**
  * Local IPv4 interfaces we are willing to use, with their broadcast address.
- * Loopback and link-local (169.254/16) are skipped. `only` restricts to one
- * interface address (the --interface option).
+ * Loopback is skipped. Link-local (169.254/16) is KEPT: a laptop wired
+ * straight to a player with no router gets exactly such an address on both
+ * ends. `only` restricts to one interface address (the --interface option).
  */
 function localInterfaces(only, interfaces = os.networkInterfaces()) {
   const result = [];
-  for (const entries of Object.values(interfaces)) {
+  for (const [name, entries] of Object.entries(interfaces)) {
     for (const e of entries || []) {
       if (e.family !== "IPv4" && e.family !== 4) continue;
-      if (e.internal || e.address.startsWith("169.254.")) continue;
+      if (e.internal) continue;
       if (only && e.address !== only) continue;
       const addr = ipToInt(e.address);
       const mask = ipToInt(e.netmask);
       result.push({
+        name,
         address: e.address,
         network: (addr & mask) >>> 0,
         mask,
@@ -127,11 +129,26 @@ class Discovery extends EventEmitter {
   }
 
   onMessage(msg, rinfo) {
-    if (msg.length > 8192) return;
-    if (!isLocalPeer(rinfo.address, this.getInterfaces())) return;
+    // "packet" reports every datagram and what we did with it (for --debug).
+    const verdict = (result, m) =>
+      this.emit("packet", {
+        from: rinfo.address,
+        bytes: msg.length,
+        result,
+        ...(m ? { name: m.source.slice(0, 64), software: m.softwareName.slice(0, 64), action: m.action } : {}),
+      });
+
+    if (msg.length > 8192) return verdict("ignored: too large");
+    if (!isLocalPeer(rinfo.address, this.getInterfaces())) return verdict("ignored: not on a local network");
     const m = decodeDiscovery(msg);
-    if (!m || m.token.equals(this.token)) return;
-    if (isIgnoredSoftware(m.softwareName)) return;
+    if (!m) return verdict("ignored: not a StagelinQ announcement");
+    if (m.token.equals(this.token)) return verdict("ignored: our own announcement", m);
+    if (isIgnoredSoftware(m.softwareName)) return verdict("ignored: software on the ignore list", m);
+    // Players announce the TCP port of their services. Other StagelinQ
+    // *applications* (NowPlaying, another djrequest-link, …) announce port 0:
+    // there is nothing to connect to.
+    if (m.port === 0) return verdict("ignored: another app, not a player", m);
+    verdict("accepted", m);
 
     // A device is its token at an address and port: a restarted device (new
     // port) is a new device, and two announcers sharing a token can't make

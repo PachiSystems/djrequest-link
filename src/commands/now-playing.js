@@ -2,6 +2,7 @@
 
 const { LinkError } = require("../errors");
 const { StagelinqClient } = require("../nowplaying/stagelinq");
+const { localInterfaces } = require("../nowplaying/stagelinq/discovery");
 const { DeckTracker, parseMode, DEFAULTS: SELECT_DEFAULTS } = require("../nowplaying/deck-selector");
 const { NowPlayingBridge, toPayload, DEFAULTS: BRIDGE_DEFAULTS } = require("../nowplaying/bridge");
 const { API_OPTIONS, ENV_VENUE_ID, out, warn, parse, requireOption, apiFromOptions, venueFromOptions } = require("./shared");
@@ -11,7 +12,7 @@ const HELP = `djrequest-link now-playing — show the track you're playing on yo
 
 Usage:
   djrequest-link now-playing watch   [--venue <id>] [--dry-run] [--mode <m>] [options]
-  djrequest-link now-playing devices [--seconds <n>] [--interface <ip>]
+  djrequest-link now-playing devices [--seconds <n>] [--interface <ip>] [--debug]
   djrequest-link now-playing show    [--venue <id>]
   djrequest-link now-playing set     [--venue <id>] --title <t> --artist <a>
   djrequest-link now-playing clear   [--venue <id>]
@@ -44,6 +45,7 @@ Options:
   --interface <ip>         Only use the network interface with this IPv4 address.
   --verbose                (watch) Also print device and deck details.
   --seconds <n>            (devices) How long to listen (default 5).
+  --debug                  (devices) Show network interfaces and every packet received.
   --api-url, --api-key     See \`djrequest-link --help\`.
 `;
 
@@ -263,28 +265,92 @@ function formatDeck(d) {
 }
 
 async function devices(args) {
-  const values = parse(args, { seconds: { type: "string" }, interface: { type: "string" } });
+  const values = parse(args, {
+    seconds: { type: "string" },
+    interface: { type: "string" },
+    debug: { type: "boolean", default: false },
+  });
   const seconds = number(values.seconds, "--seconds", { min: 1, max: 120 }) ?? 5;
+  const debug = values.debug;
   const client = new StagelinqClient({ interfaceAddress: values.interface, softwareVersion: version });
   const found = new Map();
-  client.discovery.on("device", (d) => found.set(d.id, d));
-  client.on("device-connected", (d) => {
-    found.set(d.id, { ...d, stateMap: true });
+  const packets = { total: 0, own: 0, offNetwork: 0, other: 0, accepted: 0 };
+  const seenLines = new Set();
+
+  const ifaces = localInterfaces(values.interface || null);
+  if (debug || ifaces.length === 0) {
+    if (ifaces.length === 0) {
+      out(
+        values.interface
+          ? `No network interface has the address ${values.interface}.`
+          : "No usable network interface: connect to the network your gear is on."
+      );
+    }
+    for (const i of ifaces) out(`Interface ${i.name}: ${i.address} (announcing to ${i.broadcast})`);
+  }
+
+  client.discovery.on("packet", (p) => {
+    packets.total += 1;
+    if (p.result === "accepted") packets.accepted += 1;
+    else if (p.result.includes("own")) packets.own += 1;
+    else if (p.result.includes("local network")) packets.offNetwork += 1;
+    else packets.other += 1;
+    // Devices announce every second: print each distinct (sender, verdict) once.
+    const who = p.name ? ` ${p.name} (${p.software})` : "";
+    const line = `  packet from ${p.from}${who}: ${p.result}`;
+    if (debug && !seenLines.has(line)) {
+      seenLines.add(line);
+      out(line);
+    }
   });
-  client.on("error", () => {});
-  await client.start();
+  client.discovery.on("device", (d) => found.set(d.id, d));
+  client.on("device-connected", (d) => found.set(d.id, { ...d, stateMap: true }));
+  let stopping = false;
+  client.on("device-disconnected", ({ device, reason }) => {
+    if (debug && !stopping) out(`  could not read deck state from ${device.address}: ${reason}`);
+  });
+  client.on("error", (err) => out(`Network error: ${err.message}`));
+
+  try {
+    await client.start();
+  } catch (err) {
+    throw new LinkError(
+      `Could not listen on UDP port 51337 (${err.code || err.message}). Is another StagelinQ app running?`,
+      "NETWORK"
+    );
+  }
   out(`Listening for ${seconds} s…`);
   await new Promise((r) => setTimeout(r, seconds * 1000));
+  stopping = true;
   await client.stop();
 
-  if (found.size === 0) {
-    out("No StagelinQ devices found. Check the network and that UDP port 51337 is allowed through your firewall.");
-    process.exitCode = 1;
-    return;
-  }
   for (const d of found.values()) {
     out(`${d.address}  ${d.name}  ${d.software} ${d.version}${d.stateMap ? "  (deck state OK)" : ""}`);
   }
+  if (found.size > 0) return;
+
+  process.exitCode = 1;
+  out("No StagelinQ devices found.");
+  if (packets.offNetwork > 0) {
+    out(
+      `  Heard ${packets.offNetwork} StagelinQ packet(s) from devices on a different network than this computer. ` +
+        "Put the laptop on the same network as the players (or pass --interface)."
+    );
+  } else {
+    if (packets.total === 0) {
+      out("  Nothing at all was received on UDP port 51337 — not even this computer's own announcements.");
+    } else if (packets.other > 0) {
+      out("  StagelinQ traffic was heard (other apps or ignored software), but no player announced itself.");
+    } else {
+      out("  This computer can hear its own announcements, but nothing from any player.");
+    }
+    out("  Check that:");
+    out("   • the players are switched on, finished booting, and plugged into the same router/switch (or cabled directly to this computer);");
+    out("   • your firewall lets node receive incoming connections (macOS: System Settings → Network → Firewall → Options);");
+    out("   • you're not on Wi-Fi with \"client isolation\" (common on venue/guest Wi-Fi) — use a cable;");
+    out("   • a VPN isn't capturing the traffic (try with it off, or pass --interface <this computer's IP on the DJ network>).");
+  }
+  if (!debug) out("  Run again with --debug to see every packet received and which network interfaces are used.");
 }
 
 async function show(args) {
