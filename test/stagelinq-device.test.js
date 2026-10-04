@@ -115,3 +115,40 @@ test("losing the StateMap connection ends the session with a detailed reason", a
   const [{ reason }] = await closed;
   assert.match(reason, /StateMap connection closed by device after [\d.]+s \(\d+ bytes received, 0 state updates\)/);
 });
+
+test("reconnectAll drops connections and reconnects on the next announcement", async (t) => {
+  const { StagelinqClient } = require("../src/nowplaying/stagelinq");
+  const { EventEmitter } = require("node:events");
+  const fake = await startFakeDevice();
+  t.after(() => fake.close());
+
+  // Discovery stand-in we can drive by hand (no UDP).
+  const discovery = Object.assign(new EventEmitter(), {
+    devices: new Map(),
+    start: async () => {},
+    stop: async () => {},
+  });
+  const client = new StagelinqClient({ discoveryImpl: () => discovery });
+  t.after(() => client.stop());
+  const announce = () => {
+    discovery.devices.set(fake.device.id, fake.device);
+    discovery.emit("device", fake.device);
+  };
+
+  const connected = [];
+  const disconnected = [];
+  client.on("device-connected", (d) => connected.push(d.id));
+  client.on("device-disconnected", ({ reason }) => disconnected.push(reason));
+
+  announce();
+  await once(client, "device-connected");
+
+  client.reconnectAll("woke from sleep");
+  assert.deepEqual(disconnected, ["woke from sleep"]);
+  assert.equal(client.connections.size, 0);
+  assert.equal(discovery.devices.size, 0, "known devices forgotten");
+
+  announce(); // the device's next 1-second announcement
+  await once(client, "device-connected");
+  assert.equal(connected.length, 2);
+});

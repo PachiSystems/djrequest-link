@@ -228,7 +228,11 @@ async function watch(args) {
   let lastTick = Date.now();
   const ticker = setInterval(() => {
     const now = Date.now();
-    if (now - lastTick > SLEEP_GAP_MS) bridge.resumedFromSleep();
+    if (now - lastTick > SLEEP_GAP_MS) {
+      bridge.resumedFromSleep();
+      // Connections that were open before sleep may be silently dead.
+      client.reconnectAll("woke from sleep");
+    }
     lastTick = now;
     bridge.tick();
     if (verbose) for (const d of tracker.describe(now)) if (d.playing) log(`  ${formatDeck(d)}`);

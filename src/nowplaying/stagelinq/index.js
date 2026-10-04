@@ -113,6 +113,20 @@ class StagelinqClient extends EventEmitter {
     this.retries.set(device.id, r);
   }
 
+  /**
+   * Tear down every device connection and forget known devices, so the next
+   * announcement (devices send one every second) reconnects from scratch. Used
+   * after the computer wakes from sleep: TCP connections can look open while
+   * actually dead, and would otherwise sit silent for many minutes until the
+   * OS's keepalive gives up.
+   */
+  reconnectAll(reason) {
+    for (const id of [...this.connections.keys()]) this.drop(id, reason);
+    for (const r of this.retries.values()) clearTimeout(r.timer);
+    this.retries.clear();
+    this.discovery.devices.clear();
+  }
+
   drop(id, reason) {
     const r = this.retries.get(id);
     if (r) clearTimeout(r.timer);

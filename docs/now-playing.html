@@ -156,6 +156,12 @@
 
   <h2 id="troubleshooting">Troubleshooting</h2>
 
+  <p><strong>Keep a log at gigs.</strong> If something goes wrong mid-set, the terminal output says why — save it
+    to a file so you can look (or share it) afterwards:</p>
+  <pre><code><span class="p">$ </span>djrequest-link now-playing watch --venue &lt;id&gt; --verbose 2&gt;&amp;1 | tee ~/djrequest-link.log</code></pre>
+  <p>Check the first lines: <em>Venue: …</em> names the venue being updated. If you have several venues, make sure
+    it's the one you're playing at.</p>
+
   <h3 id="no-devices">No devices found</h3>
   <p>Start with <code>djrequest-link now-playing devices --debug</code>. It lists the network adapters the tool
     uses and every StagelinQ packet it hears, with the reason for ignoring any. Then:</p>
